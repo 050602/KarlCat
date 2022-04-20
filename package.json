@@ -1,0 +1,21 @@
+{
+  "name": "karlcat",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx tsc",
+    "poststart": "node ./dist/app.js",
+    "watch": "webpack --watch",
+    "toU3D": "webpack",
+    "posttoU3D": "uglifyjs --rename output/main.js -o output/main.js && node copyJsFile2.js output ../client/Assets/Assets/ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mydog": "^2.3.2",
+    "protobufjs": "^6.11.2",
+    "typescript": "^4.6.3"
+  }
+}
