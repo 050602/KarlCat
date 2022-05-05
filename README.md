@@ -23,7 +23,7 @@ npm start
 
 client is Csharp , In this "Csharp" folder
 
-the  Network.cs , use his Function  "Send"  to  KalrCat   
+the  NetworkManager.cs , use his Function  "Send"  to  KalrCat   
 
 # 需要注意的两个点
 1.npm start 实际上是把代码编译到dist, 其中 proto下的文件夹protobuf文件夹的内容并不会跟随tsc 一起编译过去，需要自己手动拖到dist上面
