@@ -6,6 +6,8 @@ import { connector, createApp } from "./mydog";
 import { Session } from "./components/session";
 import { ServerName } from "./config/sys/protoToServerName";
 import { gzaLog } from "./LogTS";
+import DataBase from "./database/DataBase";
+import LoginTable from "./database/LoginTable";
 export let app = createApp();
 
 app.setConfig("connector", { "connector": connector.Tcp, "clientOnCb": clientOnCallback, "heartbeat": 20, "clientOffCb": clientOffCallback, "interval": 50 });
@@ -29,8 +31,14 @@ app.configure(ServerName.gate, () => {
     });
 });
 
+startDB();
 
-app.start();
+async function startDB() {
+    await DataBase.getInstance().init();
+
+    app.start();
+}
+
 
 // servers 目录为通信消息入口。
 // 如 chat 表示聊天类型服务器，handler目录下接收客户端消息，remote目录下接收服务器之间的rpc调用消息。

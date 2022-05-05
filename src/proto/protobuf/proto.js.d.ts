@@ -3,10 +3,14 @@ import * as $protobuf from "protobufjs";
 export namespace lanlu {
 
     interface IPt100_1_tos {
+        userName: string;
+        passWord: string;
     }
 
     class Pt100_1_tos implements IPt100_1_tos {
         constructor(properties?: lanlu.IPt100_1_tos);
+        public userName: string;
+        public passWord: string;
         public static create(properties?: lanlu.IPt100_1_tos): lanlu.Pt100_1_tos;
         public static encode(message: lanlu.IPt100_1_tos, writer?: $protobuf.Writer): $protobuf.Writer;
         public static encodeDelimited(message: lanlu.IPt100_1_tos, writer?: $protobuf.Writer): $protobuf.Writer;
@@ -20,11 +24,17 @@ export namespace lanlu {
 
     interface IPt100_1_toc {
         serverId: number;
+        serverTime: number;
+        code: number;
+        roleList?: (number[]|null);
     }
 
     class Pt100_1_toc implements IPt100_1_toc {
         constructor(properties?: lanlu.IPt100_1_toc);
         public serverId: number;
+        public serverTime: number;
+        public code: number;
+        public roleList: number[];
         public static create(properties?: lanlu.IPt100_1_toc): lanlu.Pt100_1_toc;
         public static encode(message: lanlu.IPt100_1_toc, writer?: $protobuf.Writer): $protobuf.Writer;
         public static encodeDelimited(message: lanlu.IPt100_1_toc, writer?: $protobuf.Writer): $protobuf.Writer;
@@ -33,6 +43,86 @@ export namespace lanlu {
         public static verify(message: { [k: string]: any }): (string|null);
         public static fromObject(object: { [k: string]: any }): lanlu.Pt100_1_toc;
         public static toObject(message: lanlu.Pt100_1_toc, options?: $protobuf.IConversionOptions): { [k: string]: any };
+        public toJSON(): { [k: string]: any };
+    }
+
+    interface IPt100_2_tos {
+    }
+
+    class Pt100_2_tos implements IPt100_2_tos {
+        constructor(properties?: lanlu.IPt100_2_tos);
+        public static create(properties?: lanlu.IPt100_2_tos): lanlu.Pt100_2_tos;
+        public static encode(message: lanlu.IPt100_2_tos, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static encodeDelimited(message: lanlu.IPt100_2_tos, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): lanlu.Pt100_2_tos;
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): lanlu.Pt100_2_tos;
+        public static verify(message: { [k: string]: any }): (string|null);
+        public static fromObject(object: { [k: string]: any }): lanlu.Pt100_2_tos;
+        public static toObject(message: lanlu.Pt100_2_tos, options?: $protobuf.IConversionOptions): { [k: string]: any };
+        public toJSON(): { [k: string]: any };
+    }
+
+    interface IPt100_2_toc {
+    }
+
+    class Pt100_2_toc implements IPt100_2_toc {
+        constructor(properties?: lanlu.IPt100_2_toc);
+        public static create(properties?: lanlu.IPt100_2_toc): lanlu.Pt100_2_toc;
+        public static encode(message: lanlu.IPt100_2_toc, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static encodeDelimited(message: lanlu.IPt100_2_toc, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): lanlu.Pt100_2_toc;
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): lanlu.Pt100_2_toc;
+        public static verify(message: { [k: string]: any }): (string|null);
+        public static fromObject(object: { [k: string]: any }): lanlu.Pt100_2_toc;
+        public static toObject(message: lanlu.Pt100_2_toc, options?: $protobuf.IConversionOptions): { [k: string]: any };
+        public toJSON(): { [k: string]: any };
+    }
+
+    interface IPt100_3_tos {
+        roleId: number;
+        time: number;
+        ticket: string;
+        os: string;
+        mobile: string;
+        mobiletype: string;
+        fcm: number;
+    }
+
+    class Pt100_3_tos implements IPt100_3_tos {
+        constructor(properties?: lanlu.IPt100_3_tos);
+        public roleId: number;
+        public time: number;
+        public ticket: string;
+        public os: string;
+        public mobile: string;
+        public mobiletype: string;
+        public fcm: number;
+        public static create(properties?: lanlu.IPt100_3_tos): lanlu.Pt100_3_tos;
+        public static encode(message: lanlu.IPt100_3_tos, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static encodeDelimited(message: lanlu.IPt100_3_tos, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): lanlu.Pt100_3_tos;
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): lanlu.Pt100_3_tos;
+        public static verify(message: { [k: string]: any }): (string|null);
+        public static fromObject(object: { [k: string]: any }): lanlu.Pt100_3_tos;
+        public static toObject(message: lanlu.Pt100_3_tos, options?: $protobuf.IConversionOptions): { [k: string]: any };
+        public toJSON(): { [k: string]: any };
+    }
+
+    interface IPt100_3_toc {
+        code: number;
+    }
+
+    class Pt100_3_toc implements IPt100_3_toc {
+        constructor(properties?: lanlu.IPt100_3_toc);
+        public code: number;
+        public static create(properties?: lanlu.IPt100_3_toc): lanlu.Pt100_3_toc;
+        public static encode(message: lanlu.IPt100_3_toc, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static encodeDelimited(message: lanlu.IPt100_3_toc, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): lanlu.Pt100_3_toc;
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): lanlu.Pt100_3_toc;
+        public static verify(message: { [k: string]: any }): (string|null);
+        public static fromObject(object: { [k: string]: any }): lanlu.Pt100_3_toc;
+        public static toObject(message: lanlu.Pt100_3_toc, options?: $protobuf.IConversionOptions): { [k: string]: any };
         public toJSON(): { [k: string]: any };
     }
 

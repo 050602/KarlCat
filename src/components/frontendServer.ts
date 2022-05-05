@@ -162,7 +162,7 @@ class ClientManager implements I_clientManager {
             }
             //  如果该协议是发给前端服的，就前端自己处理
             if (!getNameByMainKey(data.mainKey)) {
-                // console.log("frontend protoDecode3", data.mainKey, data.sonKey, msgBuf, KalrEvent.FrontendServerDoFuntion + data.mainKey + "_" + data.sonKey);
+                  //此处返回的是Protobuf的结构体，而不是Buffer
                 let msg = this.app.msgDecode(data.mainKey, data.sonKey, data.msg, true);
                 TSEventCenter.getInstance().event(KalrEvent.FrontendServerDoFuntion + data.mainKey + "_" + data.sonKey, msg, client.session, this.callBack(client, data.mainKey, data.sonKey));
             } else {

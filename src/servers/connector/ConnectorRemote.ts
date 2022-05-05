@@ -21,12 +21,13 @@ export default class ConnectorRemote extends BaseServerLogic {
         console.log("test say ", msg)
     }
 
-    frontendFun() {
+    //protobuf结构体
+    frontendFun(data: any) {
         //理论上此处不可能收到
         console.log("后端收到了前端服的数据")
     }
-
-    backFun() {
+    //protobuf结构体
+    backFun(data: any) {
         console.log("后端收到了穿透前端服传递过来的数据")
     }
 }

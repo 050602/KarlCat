@@ -67,16 +67,11 @@ export class BackendServer {
         let sessionBuf = msg.slice(3, 3 + sessionLen); //截取了3-41位的数据
         let session = new Session();
 
-        // console.log("sessionLen", sessionLen, msg.length);
         session.setAll(JSON.parse(sessionBuf.toString()));
         let mainKey = msg.readUInt16BE(3 + sessionLen);
-        // console.log("mainkey", mainKey);
         let sonKey = msg.readUInt16BE(5 + sessionLen);
-        // console.log("sonKey", sonKey);
-        // let cmdArr = this.app.routeConfig2[cmd];
+        //此处返回的是Protobuf的结构体，而不是Buffer
         let data = this.app.msgDecode(mainKey, sonKey, msg.slice(7 + sessionLen), true);
-        // this.msgHandler[cmdArr[1]][cmdArr[2]](data, session, this.callback(id, mainKey, sonKey, session.uid));
-        // gzaLog("收到消息", id, KalrEvent.BackendServerDoFuntion + mainKey + "_" + sonKey);
         TSEventCenter.getInstance().event(KalrEvent.BackendServerDoFuntion + mainKey + "_" + sonKey, data, session, this.callback(id, mainKey, sonKey, session.uid));
     }
 

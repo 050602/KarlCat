@@ -194,7 +194,7 @@ export interface I_encodeDecodeConfig {
     /**
      * message encoding
      */
-    "msgEncode"?: (mainKey: number, sonKey: number, msg: any, toS: boolean) => Buffer,
+    "msgEncode"?: (mainKey: number, sonKey: number, msg: any, toS: boolean) => Uint8Array,
     /**
      * protocol decoding
      */

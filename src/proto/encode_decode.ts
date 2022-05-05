@@ -3,6 +3,7 @@ import { cmd } from "../config/cmd";
 import { lanlu } from "./protobuf/proto.js";
 
 
+//该代码没有被使用，查找解码的时候，请查看 protocol.ts
 
 /** 配置编解码 */
 export function getEncodeDecodeFunc(): { "msgEncode": (mainKey: number, sonKey: number, data: any, toS: boolean) => Buffer, "msgDecode": (mainKey: number, sonKey: number, msg: Buffer, toS: boolean) => any } {
