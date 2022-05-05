@@ -3,9 +3,12 @@
 
 使用了Protobuf 作为 协议传输工具
 
+使用MongoDB 作为 数据库
+
 Base Mydog remould , NodeJS Server 
 
 Protobuf is used as a protocol tool
+Used MongonDB
 
 # Mydog Home
 https://www.mydog.wiki
