@@ -3,10 +3,14 @@
  */
 
 
-import Application from "../application";
+import { Application } from "../application";
+import { logInfo } from "../LogTS";
 import define = require("../util/define");
+import { DateUtils } from "../utils/DateUtils";
 import { Master_ServerProxy, Master_ClientProxy } from "./master";
 import { monitor_client_proxy } from "./monitor";
+const BSON = require('bson');
+const Long = BSON.Long;
 
 let serverTypeSort: string[] = [];
 
@@ -61,7 +65,8 @@ export class MasterCli {
                 }, timeout * 1000)
             }
         }
-        socket.send(data);
+        let dataBuf: Buffer = BSON.serialize(data);
+        socket.send(dataBuf);
     }
 
     private func_list(reqId: number, socket: Master_ClientProxy, args: any) {
@@ -71,7 +76,7 @@ export class MasterCli {
             num++;
             this.send_to_monitor(this.servers[sid], { "func": "list" }, 10, cb)
         }
-        let titles = ["id", "serverType", "pid", "rss(M)", "upTime(d-h-m)"];
+        let titles = ["serverName", "serverType", "pid", "rss(M)", "upTime(d-h-m)"];
         let infos = getListInfo(this.app);
         let listFunc = this.app.someconfig.mydogList;
         if (typeof listFunc === "function") {
@@ -211,14 +216,14 @@ export class MasterCli {
         }
 
         let num = okArr.length;
-        let endData: { "id": string, "serverType": string, "data": any }[] = [];
+        let endData: { "serverName": string, "serverType": string, "data": any }[] = [];
         let timeoutIds: string[] = [];
         for (let one of okArr) {
             this.send_to_monitor(one, { "func": "send", "args": args.argv }, 60, (err: any, data: any) => {
                 if (err) {
                     timeoutIds.push(one.sid);
                 } else {
-                    endData.push({ "id": one.sid, "serverType": one.serverType, "data": data });
+                    endData.push({ "serverName": one.sid, "serverType": one.serverType, "data": data });
                 }
                 num--;
                 if (num <= 0) {
@@ -234,11 +239,11 @@ export class MasterCli {
 function getListInfo(app: Application) {
     let mem = process.memoryUsage();
     let Mb = 1024 * 1024;
-    return [app.serverId, app.serverType, process.pid.toString(), Math.floor(mem.rss / Mb).toString(), formatTime(app.startTime)];
+    return [app.serverName, app.serverType, process.pid.toString(), Math.floor(mem.rss / Mb).toString(), formatTime(app.startTime)];
 }
 
 function formatTime(time: number) {
-    time = Math.floor((Date.now() - time) / 1000);
+    time = Math.floor((DateUtils.timestamp() - time) * 0.001);
     var days = Math.floor(time / (24 * 3600));
     time = time % (24 * 3600);
     var hours = Math.floor(time / 3600);

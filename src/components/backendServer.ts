@@ -1,22 +1,25 @@
 
 
-import Application from "../application";
+import { Application } from "../application";
+import { I_encodeDecodeConfig, sessionCopyJson } from "../util/interfaceDefine";
 import { encodeRemoteData } from "./msgCoder";
-import * as path from "path";
-import * as fs from "fs";
 import define = require("../util/define");
-import { I_encodeDecodeConfig } from "../util/interfaceDefine";
-
-import { Session, initSessionApp } from "./session";
+import { KalrEvent } from "../event/KalrEvent";
 import * as protocol from "../connector/protocol";
-import { KalrEvent } from "..//utils/TSEvent";
+import { RegisterSigleton } from "../register/RegisterSigleton";
 import { TSEventCenter } from "../utils/TSEventCenter";
-import { gzaLog } from "../LogTS";
+import { initSessionApp, Session } from "./session";
+import { logInfo, logProto, warningLog } from "../LogTS";
+import { isStressTesting } from "../app";
+import { RpcEvent } from "../event/RpcEvent";
+const BSON = require('bson');
+const Long = BSON.Long;
+
 
 
 export class BackendServer {
     private app: Application;
-    private msgHandler: { [filename: string]: any } = {};
+    // private msgHandler: { [filename: string]: any } = {};
     constructor(app: Application) {
         this.app = app;
     }
@@ -39,40 +42,66 @@ export class BackendServer {
      * Back-end server load routing processing
      */
     private loadHandler() {
-        let dirName = path.join(this.app.base, define.some_config.File_Dir.Servers, this.app.serverType);
-        let exists = fs.existsSync(dirName);
-        if (exists) {
-            let self = this;
-            fs.readdirSync(dirName).forEach(function (filename) {
-                if (!filename.endsWith(".js")) {
-                    return;
-                }
-
-                let name = path.basename(filename, '.js');
-                let handler = require(path.join(dirName, filename));
-                if (handler.default && typeof handler.default === "function") {
-                    self.msgHandler[name] = new handler.default(self.app);
-                    self.msgHandler[name]["ServerType"] = self.app.serverType;
-                }
-            });
-        }
+        RegisterSigleton.initBack(this);
+        TSEventCenter.Instance.bind(RpcEvent.OnRoleAcitveOutLine, this, this.clearQueue);
+        TSEventCenter.Instance.bind(RpcEvent.OnRoleNetDisconnection, this, this.clearQueue);
     }
+
+
+    public initMsgHandler(sigleton: any) {
+        sigleton["ServerType"] = this.app.serverType;
+    }
+
+    public protoQueue: Map<number, any[][]> = new Map();
 
     /**
      * The back-end server receives the client message forwarded by the front-end server
      */
     handleMsg(id: string, msg: Buffer) {
         let sessionLen = msg.readUInt16BE(1);
-        // console.log("msgLen", msg.length);
+        // logInfo("msgLen", msg.length);
         let sessionBuf = msg.slice(3, 3 + sessionLen); //截取了3-41位的数据
         let session = new Session();
 
-        session.setAll(JSON.parse(sessionBuf.toString()));
+        session.setAll(BSON.deserialize(sessionBuf) as sessionCopyJson);
         let mainKey = msg.readUInt16BE(3 + sessionLen);
         let sonKey = msg.readUInt16BE(5 + sessionLen);
         //此处返回的是Protobuf的结构体，而不是Buffer
         let data = this.app.msgDecode(mainKey, sonKey, msg.slice(7 + sessionLen), true);
-        TSEventCenter.getInstance().event(KalrEvent.BackendServerDoFuntion + mainKey + "_" + sonKey, data, session, this.callback(id, mainKey, sonKey, session.uid));
+        logProto(">>>>>>>>>>>>>>>" + this.app.serverName + " 收到消息", mainKey + "-" + sonKey, id, data);
+
+        let queue = this.protoQueue.get(session.uid);
+        if (!queue) {
+            queue = [];
+            this.protoQueue.set(session.uid, queue);
+        }
+        queue.push([mainKey, sonKey, data, session, id]);
+        if (queue.length == 1) {
+            this.doQueue(session.uid);
+        }
+        // TSEventCenter.Instance.event(KalrEvent.BackendServerDoFuntion + mainKey + "_" + sonKey, data, session, this.callback(id, mainKey, sonKey, session.uid));
+    }
+
+    public clearQueue(uid: number) {
+        let queue = this.protoQueue.get(uid);
+        if (queue) {
+            queue = [];
+            this.protoQueue.delete(uid);
+        }
+    }
+
+    private async doQueue(uid: number) {
+        let queue = this.protoQueue.get(uid);
+        let count = 0;
+        while (queue.length > 0) {
+            count++;
+            if (count > 30) {
+                warningLog("执行消息队列超过了30次尚未跳出");
+                break;
+            }
+            let arr = queue.shift();
+            await TSEventCenter.Instance.eventAsync(KalrEvent.BackendServerDoFuntion + arr[0] + "_" + arr[1], arr[2], arr[3], this.callback(arr[4], arr[0], arr[1], uid));
+        }
     }
 
 
@@ -82,8 +111,10 @@ export class BackendServer {
             if (msg === undefined) {
                 msg = null;
             }
-            // console.log("back callback", mainKey, sonKey);
-            let msgBuf = self.app.protoEncode(mainKey, sonKey, msg, true);
+            // logInfo("back callback", mainKey, sonKey);
+
+            let msgBuf = self.app.protoEncode(mainKey, sonKey, msg, false);
+            logProto("<<<<<<<<<<<<<<< 发送消息", mainKey + "-" + sonKey, id, msg);
             let buf = encodeRemoteData([uid], msgBuf);
             self.app.rpcPool.sendMsg(id, buf);
         };
@@ -108,7 +139,8 @@ export class BackendServer {
         let group: number[];
         let one: { "uid": number, "sid": string };
         for (one of uidsid) {
-            if (!one.sid) {
+
+            if (!one.sid || !one.uid) {
                 continue;
             }
             group = groups[one.sid];
@@ -119,8 +151,13 @@ export class BackendServer {
             group.push(one.uid);
         }
         let app = this.app;
-        // console.log("back2 callback", mainKey, sonKey);
-        let msgBuf: Buffer = app.protoEncode(mainKey, sonKey, msg, true);
+
+        // if (isStressTesting) {
+        //     TSEventCenter.Instance.event(KalrEvent.OnUnitTestProto + mainKey + "_" + sonKey, msg);
+        // }
+        // logInfo("back2 callback", mainKey, sonKey);
+        let msgBuf: Buffer = app.protoEncode(mainKey, sonKey, msg, false);
+        logProto("<<<<<<<<<<<<<<< 发送消息", mainKey + "-" + sonKey, groups, msg);
         let sid: string;
         let buf: Buffer;
         for (sid in groups) {
@@ -134,7 +171,7 @@ export class BackendServer {
      */
     sendMsgByGroup(mainKey: number, sonKey: number, msg: any, group: { [sid: string]: number[] }) {
         let app = this.app;
-        // console.log("back3 callback", mainKey, sonKey);
+        // logInfo("back3 callback", mainKey, sonKey);
         let msgBuf: Buffer = app.protoEncode(mainKey, sonKey, msg, true);
         let sid: string;
         let buf: Buffer;

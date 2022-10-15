@@ -8,6 +8,7 @@ import { EventEmitter } from "events";
 import { SocketProxy } from "../util/interfaceDefine";
 import { decode } from "./msgCoder";
 import { some_config } from "../util/define";
+import { errLog } from "../LogTS";
 
 
 export default function tcpServer(port: number, noDelay: boolean, startCb: () => void, newClientCb: (socket: SocketProxy) => void) {
@@ -17,7 +18,7 @@ export default function tcpServer(port: number, noDelay: boolean, startCb: () =>
     }).listen(port, startCb);
 
     svr.on("error", (err) => {
-        console.log(err);
+        errLog("error", err);
         process.exit();
     });
     svr.on("close", () => { });

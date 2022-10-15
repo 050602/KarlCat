@@ -1,13 +1,16 @@
-import Application from "../application";
-import { I_clientManager, I_clientSocket, SocketProxy, I_connectorConfig } from "../util/interfaceDefine";
-import * as define from "../util/define";
-import { Session } from "../components/session";
-import { EventEmitter } from "events";
-import WebSocket, * as ws from "ws";
-import * as https from "https";
-import * as http from "http";
-import { some_config } from "../util/define";
 import * as crypto from "crypto";
+import { EventEmitter } from "events";
+import * as http from "http";
+import * as https from "https";
+import WebSocket, * as ws from "ws";
+import { isStressTesting } from "../app";
+import { Application } from "../application";
+import { Session } from "../components/session";
+import { logInfo, warningLog } from "../LogTS";
+import { serversConfig } from "../serverConfig/sys/servers";
+import * as define from "../util/define";
+import { I_clientManager, I_clientSocket, I_connectorConfig, SocketProxy } from "../util/interfaceDefine";
+import { UnitTest } from "../utils/UnitTest";
 
 let maxLen = 0;
 /**
@@ -46,15 +49,15 @@ export class ConnectorWs {
 
         // Handshake buffer
         let cipher = crypto.createHash("md5")
-        this.md5 = cipher.update(JSON.stringify(this.app.routeConfig)).digest("hex");
+        this.md5 = cipher.update(JSON.stringify(serversConfig)).digest("hex");
 
-        let routeBuf = Buffer.from(JSON.stringify({ "md5": this.md5, "heartbeat": this.heartbeatTime / 1000 }));
+        let routeBuf = Buffer.from(JSON.stringify({ "md5": this.md5, "heartbeat": this.heartbeatTime * 0.001 }));
         this.handshakeBuf = Buffer.alloc(routeBuf.length + 5);
         this.handshakeBuf.writeUInt32BE(routeBuf.length + 1, 0);
         this.handshakeBuf.writeUInt8(define.Server_To_Client.handshake, 4);
         routeBuf.copy(this.handshakeBuf, 5);
 
-        let routeBufAll = Buffer.from(JSON.stringify({ "md5": this.md5, "route": this.app.routeConfig, "heartbeat": this.heartbeatTime / 1000 }));
+        let routeBufAll = Buffer.from(JSON.stringify({ "md5": this.md5, "route": "", "heartbeat": this.heartbeatTime * 0.001 }));
         this.handshakeBufAll = Buffer.alloc(routeBufAll.length + 5);
         this.handshakeBufAll.writeUInt32BE(routeBufAll.length + 1, 0);
         this.handshakeBufAll.writeUInt8(define.Server_To_Client.handshake, 4);
@@ -70,13 +73,13 @@ export class ConnectorWs {
         if (this.nowConnectionNum < this.maxConnectionNum) {
             new ClientSocket(this, this.clientManager, socket);
         } else {
-            console.warn("socket num has reached the maxConnectionNum, close it");
+            warningLog("socket num has reached the maxConnectionNum, close it");
             socket.close();
         }
     }
 }
 
-class ClientSocket implements I_clientSocket {
+export class ClientSocket implements I_clientSocket {
     session: Session = null as any;                         // Session
     remoteAddress: string = "";
     private connector: ConnectorWs;
@@ -105,7 +108,21 @@ class ClientSocket implements I_clientSocket {
         }, 10000);
     }
 
-    private onRegister(data: Buffer) {
+    private onRegister(data: Buffer, isWoshou: boolean = false) {
+        if (isWoshou) {
+            this.send(this.connector.handshakeBuf);
+
+            clearTimeout(this.registerTimer);
+            this.heartbeat();
+            this.clientManager.addClient(this);
+            if (this.sendCache) {
+                this.sendTimer = setInterval(this.sendInterval.bind(this), this.interval);
+            }
+            this.socket.socket._receiver._maxPayload = maxLen;
+            this.socket.on('data', this.onData.bind(this));
+            return;
+        }
+
         let type = data.readUInt8(0);
         if (type === define.Client_To_Server.handshake) {        // shake hands
             this.handshake(data);
@@ -117,7 +134,14 @@ class ClientSocket implements I_clientSocket {
     /**
      * Received data
      */
-    private onData(data: Buffer) {
+    private onData(data: Buffer, isWoshou: boolean = false) {
+        // logInfo("ondata222", data.toString());
+        if (isWoshou) {
+            let str = data.toString();
+            UnitTest.doSomething(this.clientManager, this, str);
+            return;
+        }
+
         let type = data.readUInt8(0);
         if (type === define.Client_To_Server.msg) {               // Ordinary custom message
             this.clientManager.handleMsg(this, data);
@@ -221,16 +245,6 @@ class ClientSocket implements I_clientSocket {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
 /**
  * websocket server
  */
@@ -238,10 +252,11 @@ function wsServer(port: number, config: I_connectorConfig, startCb: () => void, 
     let httpServer = config["ssl"] ? https.createServer({ "cert": config["cert"], "key": config["key"] }) : http.createServer();
     let server = new ws.Server({ "server": httpServer });
     server.on("connection", function (socket, req) {
+        logInfo("链接");
         newClientCb(new WsSocket(socket, req.connection.remoteAddress as string));
     });
     server.on("error", (err) => {
-        console.log(err);
+        logInfo("error", err);
         process.exit();
     });
     server.on("close", () => { });
@@ -283,9 +298,25 @@ class WsSocket extends EventEmitter implements SocketProxy {
     }
 
     private onData(data: Buffer) {
+        // logInfo("ondata", data.toString());
+        if (isStressTesting) {
+            let protoID = data.toString();
+            if (protoID == "1") {
+                //握手
+                logInfo("connectorProxyWs 握手");
+                this.emit("data", null, true);
+            } else {
+                //把二进制转换为16进制
+                this.emit("data", data, true);
+            }
+            return;
+        }
+
+
         let index = 0;
         while (index < data.length) {
             let msgLen = data.readUInt32BE(index);
+            // logInfo("index==", data.length, index < data.length, msgLen, index + 4 + msgLen);
             this.emit("data", data.slice(index + 4, index + 4 + msgLen));
             index += msgLen + 4;
         }

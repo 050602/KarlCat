@@ -1,5 +1,8 @@
 
-import Application from "../application";
+const BSON = require('bson');
+const Long = BSON.Long;
+
+import { Application } from "../application";
 import { gzaLog } from "../LogTS";
 import define = require("../util/define");
 import { loggerLevel, loggerType, SocketProxy } from "../util/interfaceDefine";
@@ -23,7 +26,7 @@ export function decode(socket: SocketProxy, msg: Buffer) {
             if (socket.headLen === 4) {
                 socket.len = socket.headBuf.readUInt32BE(0);
                 if (socket.len > socket.maxLen || socket.len === 0) {
-                    app.logger(loggerType.frame, loggerLevel.error, "socket data length is longer then " + socket.maxLen + ", close it, " + socket.remoteAddress);
+                    app.logger(loggerType.frame, loggerLevel.error, "socket data length is longer then " + socket.maxLen + " , nowlen : " + socket.len + ", close it, " + socket.remoteAddress);
                     socket.close();
                     return;
                 }
@@ -59,7 +62,11 @@ export function decode(socket: SocketProxy, msg: Buffer) {
  * Part of the internal communication message format
  */
 export function encodeInnerData(data: any) {
-    let dataBuf: Buffer = Buffer.from(JSON.stringify(data));
+    // console.log("encodeInnerData data", data);
+    let dataBuf: Buffer = BSON.serialize(data);
+    // console.log("encoode", dataBuf);
+    let data2 = BSON.deserialize(dataBuf);
+    // console.log("decoode", data2);
     let buffer = Buffer.allocUnsafe(dataBuf.length + 4);
     buffer.writeUInt32BE(dataBuf.length, 0);
     dataBuf.copy(buffer, 4);
@@ -77,6 +84,7 @@ export function encodeInnerData(data: any) {
  */
 
 export function encodeRemoteData(uids: number[], dataBuf: Buffer) {
+    // console.log("encode远程消息", uids, dataBuf.length);
     let uidsLen = uids.length * 4;
     let buf = Buffer.allocUnsafe(7 + uidsLen + dataBuf.length);
     buf.writeUInt32BE(3 + uidsLen + dataBuf.length, 0);

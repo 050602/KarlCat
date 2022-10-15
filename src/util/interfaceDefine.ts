@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
-import Application from "../application";
+import { Application } from "../application";
 import { Session } from "../components/session";
+import { ServerName } from "../serverConfig/sys/route";
 
 /**
  * socket connection proxy
@@ -24,7 +25,7 @@ export interface SocketProxy extends EventEmitter {
 export interface monitor_get_new_server {
     "T": number;
     "servers": {
-        [id: string]: ServerInfo
+        [serverName: string]: ServerInfo
     };
 }
 
@@ -33,7 +34,7 @@ export interface monitor_get_new_server {
  */
 export interface monitor_remove_server {
     "T": number;
-    "id": string;
+    "serverName": string;
     "serverType": string;
 }
 
@@ -92,6 +93,7 @@ export interface I_rpcMsg {
  * rpc request timeout
  */
 export interface I_rpcTimeout {
+    id: number;
     cb: Function;
     await: boolean;
     time: number;
@@ -238,6 +240,10 @@ export interface I_rpcConfig {
      * matrix without socket connection
      */
     "noRpcMatrix"?: { [serverType: string]: string[] },
+    /**
+    * Message cache length. The default is 5000.
+    */
+    "msgCacheLength"?: number,
 }
 
 
@@ -245,10 +251,12 @@ export interface I_rpcConfig {
  * server information
  */
 export interface ServerInfo {
+    //数字ID
+    readonly serverId: number;
     /**
-     * Server id
+     * Server id 即服务器唯一名称
      */
-    readonly id: string;
+    readonly serverName: string;
     /**
      * host
      */
@@ -266,9 +274,9 @@ export interface ServerInfo {
      */
     readonly clientPort: number;
     /**
-     * Server type [Note: Assigned by the framework]
+     * Server type [Note: Assigned by the framework]  服务器类型  Gate  Logic之类
      */
-    readonly serverType: string;
+    readonly serverType: ServerName;
 
     [key: string]: any;
 }

@@ -1,3 +1,4 @@
+import { rpcOnNewSocket } from "./rpcService";
 
 export class RpcSocketPool {
     private rpcSockets: { [id: string]: I_RpcSocket } = {};
@@ -7,7 +8,9 @@ export class RpcSocketPool {
      */
     addSocket(id: string, socket: I_RpcSocket) {
         this.rpcSockets[id] = socket;
+        rpcOnNewSocket(id);
     }
+
 
     /**
      * Remove socket
@@ -31,9 +34,9 @@ export class RpcSocketPool {
      * Get socket
      */
     getSocket(id: string) {
-        for(let i in this.rpcSockets){
-            console.log(i);
-        }
+        // for (let i in this.rpcSockets) {
+        //     logInfo(i);
+        // }
 
         return this.rpcSockets[id];
     }

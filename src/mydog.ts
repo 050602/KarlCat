@@ -1,12 +1,13 @@
-import Application from "./application";
+import { Application } from "./application";
 import { I_connectorConstructor } from "./util/interfaceDefine";
 import { ConnectorTcp } from "./connector/connectorProxyTcp";
 import { ConnectorWs } from "./connector/connectorProxyWs";
+import { errLog } from "./LogTS";
 
 interface I_mydog {
     version: string,
     createApp: () => Application,
-    app: Application,
+    mydogApp: Application,
     connector: {
         Tcp: I_connectorConstructor,
         Ws: I_connectorConstructor,
@@ -15,16 +16,16 @@ interface I_mydog {
 
 
 let hasCreated = false;
-let mydog: I_mydog = {} as any;
+let mydog:I_mydog = {} as any;
 mydog.version = require("../package.json").version;
 mydog.createApp = function () {
     if (hasCreated) {
-        console.error("the app has already been created");
-        return mydog.app;
+        errLog("the app has already been created");
+        return mydog.mydogApp;
     }
     hasCreated = true;
-    mydog.app = new Application();
-    return mydog.app;
+    mydog.mydogApp = new Application();
+    return mydog.mydogApp;
 };
 
 mydog.connector = {

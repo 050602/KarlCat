@@ -1,17 +1,23 @@
-import Application from "../application";
+import { Application } from "../application";
 import { SocketProxy, loggerLevel, ServerInfo, loggerType } from "../util/interfaceDefine";
 import { TcpClient } from "../components/tcpClient";
 import * as define from "../util/define";
 import * as rpcService from "./rpcService";
 import * as appUtil from "../util/appUtil";
+import { gzaLog } from "../LogTS";
+import { TSEventCenter } from "../utils/TSEventCenter";
+import { FrameEvent } from "../event/FrameEvent";
+const BSON = require('bson');
+const Long = BSON.Long;
+
 
 /**
  * Whether to establish a socket connection
  */
 export function ifCreateRpcClient(app: Application, server: ServerInfo) {
     // Only one socket connection is established between the two servers
-    if (app.serverId < server.id && !app.noRpcMatrix[appUtil.getNoRpcKey(app.serverType, server.serverType)]) {
-        removeSocket(server.id);
+    if (app.serverName < server.serverName && !app.noRpcMatrix[appUtil.getNoRpcKey(app.serverType, server.serverType)]) {
+        removeSocket(server.serverName);
         new RpcClientSocket(app, server);
     }
 }
@@ -47,7 +53,7 @@ export class RpcClientSocket {
 
     constructor(app: Application, server: ServerInfo) {
         this.app = app;
-        this.id = server.id;
+        this.id = server.serverName;
         this.host = server.host;
         this.port = server.port;
         rpcClientSockets[this.id] = this;
@@ -80,11 +86,11 @@ export class RpcClientSocket {
                 self.app.logger(loggerType.frame, loggerLevel.info, `rpcClient -> connect to rpc server success: ${self.id}`);
 
                 // register
-                let registerBuf = Buffer.from(JSON.stringify({
-                    "id": self.app.serverId,
+                let registerBuf = BSON.serialize({
+                    "serverName": self.app.serverName,
                     "serverType": self.app.serverType,
                     "serverToken": self.serverToken
-                }));
+                });
                 let buf = Buffer.allocUnsafe(registerBuf.length + 5);
                 buf.writeUInt32BE(registerBuf.length + 1, 0);
                 buf.writeUInt8(define.Rpc_Msg.register, 4);
@@ -198,6 +204,7 @@ export class RpcClientSocket {
     private registerHandle() {
         this.heartbeatSend();
         this.app.rpcPool.addSocket(this.id, this);
+        TSEventCenter.Instance.event(FrameEvent.onAddServer, this.id,);
     }
 
     /**

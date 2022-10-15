@@ -1,23 +1,28 @@
-import { app } from "../../app";
-import Application from "../../application";
 import { BaseServerLogic } from "../../components/BaseServerLogic";
 import { Session } from "../../components/session";
-import { ServerName } from "../../config/sys/protoToServerName";
 import LoginTable from "../../database/LoginTable";
 import RoleTable from "../../database/RoleTable";
-import { RpcEvent } from "../../event/RpcEvent";
-import { gzaLog } from "../../LogTS";
+import { KalrEvent } from "../../event/KalrEvent";
 import { lanlu } from "../../proto/protobuf/proto.js.js";
-import { KalrEvent } from "../../utils/TSEvent";
 import { TSEventCenter } from "../../utils/TSEventCenter";
 
 export default class GateMain extends BaseServerLogic {
+    public static SigletonInsName = "GateMain";
+    public static get Instance(): GateMain {
+        return super.getInstance(GateMain);
+    }
+    public initInstance(): void {
+        //接受前端服数据 ---注意，前端服只能接收到前端服的消息以及RPC消息
+        TSEventCenter.Instance.bind(KalrEvent.FrontendServerDoFuntion + "100_1", this, this.onLogin);
+        TSEventCenter.Instance.bind(KalrEvent.FrontendServerDoFuntion + "100_2", this, this.onExit);//退出登录
+        TSEventCenter.Instance.bind(KalrEvent.FrontendServerDoFuntion + "100_3", this, this.onEnterRole);//进入游戏
+    }
 
-    constructor() {
-        super();
-        TSEventCenter.getInstance().bind(KalrEvent.FrontendServerDoFuntion + "100_1", this, this.onLogin);
-        TSEventCenter.getInstance().bind(KalrEvent.FrontendServerDoFuntion + "100_2", this, this.onExit);//退出登录
-        TSEventCenter.getInstance().bind(KalrEvent.FrontendServerDoFuntion + "100_3", this, this.onEnterRole);//进入游戏
+
+    public destoryInstance(): void {
+        TSEventCenter.Instance.unbind(KalrEvent.FrontendServerDoFuntion + "100_1", this,);
+        TSEventCenter.Instance.unbind(KalrEvent.FrontendServerDoFuntion + "100_2", this,);//退出登录
+        TSEventCenter.Instance.unbind(KalrEvent.FrontendServerDoFuntion + "100_3", this,);//进入游戏
     }
 
     async onExit(msg: lanlu.IPt100_2_tos, session: Session, next: Function) {
@@ -84,19 +89,5 @@ export default class GateMain extends BaseServerLogic {
         }
         next(data);
 
-        // app.rpc(ServerName.connector + "-1", this.ServerType, RpcEvent.SayHello, "Hello World");
-
-        // await LoginTable.insert({
-        //     userName: "test",
-        //     password: "md5",
-        //     nickName: "ces",
-        //     roleList: [1]
-        // });
-
-        // let data = await LoginTable.find(1);
-        // console.log("第一次输出", data);
-        // await LoginTable.update(1, { userName: "test2" });
-        // let data2 = await LoginTable.find(1);
-        // console.log("第二次输出", data2);
     }
 }

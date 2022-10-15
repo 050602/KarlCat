@@ -1,8 +1,15 @@
-import Application from "..//application";
+import { Application } from "..//application";
 import tcpServer from "../components/tcpServer";
 import { SocketProxy, loggerLevel, loggerType, } from "../util/interfaceDefine";
 import * as define from "../util/define";
 import * as rpcService from "./rpcService";
+import { TSEventCenter } from "../utils/TSEventCenter";
+import { FrameEvent } from "../event/FrameEvent";
+import { logInfo } from "../LogTS";
+// import BSON from "bson";
+const BSON = require('bson');
+const Long = BSON.Long;
+
 
 let serverToken: string = "";
 let maxLen = 0;
@@ -14,8 +21,8 @@ export function start(app: Application, cb: () => void) {
     tcpServer(app.serverInfo.port, noDelay, startCb, newClientCb);
 
     function startCb() {
-        let str = `listening at [${app.serverInfo.host}:${app.serverInfo.port}]  ${app.serverId}`;
-        console.log(str);
+        let str = `listening at [${app.serverInfo.host}:${app.serverInfo.port}]  ${app.serverName}`;
+        logInfo(str);
         app.logger(loggerType.frame, loggerLevel.info, str);
         cb();
     }
@@ -120,26 +127,27 @@ class RpcServerSocket {
      */
     private registerHandle(msg: Buffer) {
         clearTimeout(this.registerTimer);
-        let data: { "id": string, "serverType": string, "serverToken": string };
+        let data: { "serverName": string, "serverType": string, "serverToken": string };
         try {
-            data = JSON.parse(msg.slice(1).toString());
+            data = BSON.deserialize(msg.slice(1)) as any;
         } catch (err) {
             this.app.logger(loggerType.frame, loggerLevel.error, `rpcServer -> JSON parse error，close the rpc socket: ${this.socket.remoteAddress}`);
             this.socket.close();
             return;
         }
 
+        // logInfo("注册handel",data);
         if (data.serverToken !== serverToken) {
             this.app.logger(loggerType.frame, loggerLevel.error, `rpcServer -> illegal serverToken, close the rpc socket: ${this.socket.remoteAddress}`);
             this.socket.close();
             return;
         }
-        if (this.app.rpcPool.getSocket(data.id)) {
-            this.app.logger(loggerType.frame, loggerLevel.error, `rpcServer -> already has a rpc client named: ${data.id}, close it, ${this.socket.remoteAddress}`);
+        if (this.app.rpcPool.getSocket(data.serverName)) {
+            this.app.logger(loggerType.frame, loggerLevel.error, `rpcServer -> already has a rpc client named: ${data.serverName}, close it, ${this.socket.remoteAddress}`);
             this.socket.close();
             return;
         }
-        if (this.app.serverId <= data.id) {
+        if (this.app.serverName <= data.serverName) {
             this.socket.close();
             return;
         }
@@ -147,8 +155,10 @@ class RpcServerSocket {
         this.socket.maxLen = maxLen;
         this.socket.on("data", this.onData.bind(this));
 
-        this.id = data.id;
-        this.app.rpcPool.addSocket(this.id, this);
+        this.id = data.serverName;
+
+
+
 
         this.app.logger(loggerType.frame, loggerLevel.info, `rpcServer -> get new rpc client named: ${this.id}`);
 
@@ -174,7 +184,9 @@ class RpcServerSocket {
         this.socket.send(buffer);
         this.heartbeatHandle();
 
-
+        this.app.rpcPool.addSocket(this.id, this);
+        logInfo("addSocket", this.id);
+        TSEventCenter.Instance.event(FrameEvent.onAddServer, this.id,);
     }
 
     /**

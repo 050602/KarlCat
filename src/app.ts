@@ -1,20 +1,27 @@
 
-import { getCpuUsage } from "./cpuUsage";
-import { getEncodeDecodeFunc } from "./proto/encode_decode";
-import { lanlu } from "./proto/protobuf/proto.js";
-import { connector, createApp } from "./mydog";
 import { Session } from "./components/session";
-import { ServerName } from "./config/sys/protoToServerName";
-import { gzaLog } from "./LogTS";
+import { initCheckStruct } from "./connector/protocol";
+import { getCpuUsage } from "./cpuUsage";
 import DataBase from "./database/DataBase";
-import LoginTable from "./database/LoginTable";
+import { errLog, logProto } from "./LogTS";
+import { connector, createApp } from "./mydog";
+import { ServerName } from "./serverConfig/sys/route";
 export let app = createApp();
 
-app.setConfig("connector", { "connector": connector.Tcp, "clientOnCb": clientOnCallback, "heartbeat": 20, "clientOffCb": clientOffCallback, "interval": 50 });
+export const isDebug = true;
+
+
+let connectorType = connector.Tcp;
+if (app.serverInfo.serverType == ServerName.background) {
+    connectorType = connector.Ws;
+} 
+
+app.setConfig("connector", { "connector": connectorType, "clientOnCb": clientOnCallback, "heartbeat": 20, "clientOffCb": clientOffCallback, "interval": 50 });
+
 // app.setConfig("encodeDecode", getEncodeDecodeFunc());
 app.setConfig("logger", (type: number, level: string, msg: string) => {
     if (level === "warn" || level === "error") {
-        console.log(msg);
+        errLog(msg);
     }
 });
 app.setConfig("rpc", { "interval": 33, "heartbeat": 20 });
@@ -22,23 +29,61 @@ app.setConfig("mydogList", () => {
     return [{ "title": "cpu", "value": getCpuUsage() }]
 })
 
-//如果当前是ServerName.connector（第一个），则路由到ServerName.connector（第二个）
 app.configure(ServerName.gate, () => {
-    app.route(ServerName.connector, (session: Session) => {
+    // 当客户端给后端服务器发消息时，需要提供路由函数以决定该消息发到哪个服务器
+    app.route(ServerName.logic, (session: Session) => {
         //理论上应该调用此路由之前，设置玩家的session 的 serverId
-        return ServerName.connector + "-1";
-        return ServerName.connector + "-" + session.get("serverId");
+        //此处实际上是分配对应类型的服务器其中一个分配给玩家
+        return ServerName.logic + "-" + session.get("serverId");
+    });
+
+    app.route(ServerName.fight, (session: Session) => {
+        //理论上应该调用此路由之前，设置玩家的session 的 serverId
+        //此处实际上是分配对应类型的服务器其中一个分配给玩家
+        return ServerName.fight + "-" + session.get("serverId");
+    });
+
+
+    app.route(ServerName.scenarios, (session: Session) => {
+        //理论上应该调用此路由之前，设置玩家的session 的 serverId
+        //此处实际上是分配对应类型的服务器其中一个分配给玩家
+        return ServerName.scenarios + "-" + session.get("serverId");
+    });
+
+
+
+});
+
+app.configure(ServerName.chat, () => {
+    app.route(ServerName.chat, (session: Session) => {
+        return ServerName.chat + "-" + session.get("serverId");
     });
 });
 
-startDB();
+init();
 
-async function startDB() {
-    await DataBase.getInstance().init();
+
+async function init() {
+    // await ConfigMgr.init();
+    await DataBase.Instance.init();
+
+    switch (app.serverType) {
+        case ServerName.gate:
+            break;
+        case ServerName.logic:
+            break;
+        case ServerName.chat:
+            break;
+        case ServerName.background:
+            break;
+        case ServerName.master:
+            break;
+    }
+
+    initCheckStruct();
 
     app.start();
 }
-
 
 // servers 目录为通信消息入口。
 // 如 chat 表示聊天类型服务器，handler目录下接收客户端消息，remote目录下接收服务器之间的rpc调用消息。
@@ -47,27 +92,19 @@ async function startDB() {
 // app.ts为程序入口文件
 
 process.on("uncaughtException", function (err: any) {
-    console.log(err)
+    errLog( "uncaughtException", err)
+});
+process.on("unhandledRejection", function (err: any) {
+    errLog( "unhandledRejection", err)
 });
 
 
-// function msgDecode(cmd: number, msg: Buffer): any {
-//     let msgStr = msg.toString();
-//     console.log("↑ ", app.routeConfig[cmd], msgStr);
-//     return JSON.parse(msgStr);
-// }
-
-// function msgEncode(cmd: number, msg: any): Buffer {
-//     let msgStr = JSON.stringify(msg);
-//     console.log(" ↓", app.routeConfig[cmd], msgStr);
-//     return Buffer.from(msgStr);
-// }
 
 
 function clientOnCallback(session: Session) {
-    console.log("one client on");
+    logProto("one client on", session.uid, app.serverInfo);
 }
 
 function clientOffCallback(session: Session) {
-    console.log("one client off");
+    logProto("one client off", session.uid, app.serverInfo);
 }

@@ -1,7 +1,7 @@
 
 export class TSEventCenter {
     private static _inst: TSEventCenter;
-    static getInstance() {
+    static get Instance() {
         if (TSEventCenter._inst == null) {
             TSEventCenter._inst = new TSEventCenter();
             TSEventCenter._inst.initInstance();
@@ -9,14 +9,6 @@ export class TSEventCenter {
         return TSEventCenter._inst;
     }
     initInstance() {
-        // let eventCenter: EventCenter = EventCenter.Instance;
-        // //空参数处理，以后看看要不要迁移到main
-        // // Object.setPrototypeOf(EventCenter.Instance.on, EventCenter.prototype);
-        // eventCenter.on(TSEvent.CLOSE_VIEW, this, this.closeView);
-        // eventCenter.on(TSEvent.PERLOAD_VIEW, this, this.perloadView);
-        // eventCenter.on(TSEvent.OPEN_VIEW, this, this.openView);
-
-        // eventCenter.on(TSEvent.TO_UI_LANG, this, this.toUILang);
     }
 
     private map: Map<string, any[]> = new Map();
@@ -55,7 +47,7 @@ export class TSEventCenter {
     }
 
 
-    public event(name: string, ...data: any[]) {
+    public event(name: string, ...data: any[]): void {
         let arr = this.map.get(name);
         if (arr) {
             for (let i = arr.length - 1; i >= 0; i--) {
@@ -65,6 +57,18 @@ export class TSEventCenter {
         }
     }
 
+    public async eventAsync(name: string, ...data: any[]): Promise<any[]> {
+        let arr = this.map.get(name);
+        let reArr = [];
+        if (arr) {
+            let promiseArr = [];
+            for (let i = arr.length - 1; i >= 0; i--) {
+                let f: Function = arr[i][0];
+                promiseArr.push(f.apply(arr[i][1], data));
+            }
+            reArr = await Promise.all(promiseArr);
+        }
+        return reArr;
+    }
 
-  
 }

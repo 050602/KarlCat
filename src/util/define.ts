@@ -13,7 +13,7 @@ export let some_config = {
     },
     File_Dir: {
         Servers: "servers",
-        Config: "config/sys"
+        Config: "serverConfig/sys"
     },
     Server_Token: "hi,i am inner server",
     Cli_Token: "hi,i am cli",

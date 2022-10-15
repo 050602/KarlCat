@@ -12,42 +12,56 @@ import { FrontendServer } from "./components/frontendServer";
 import { BackendServer } from "./components/backendServer";
 import { Session } from "./components/session";
 import { RpcEvent } from "./event/RpcEvent";
+import { errLog, gzaLog } from "./LogTS";
 
 // declare global {
 //     interface Rpc {
 //     }
 // }
 
-export default class Application extends EventEmitter {
+export class Application extends EventEmitter {
     appName: string = "hello world";                                                         // App name
     hasStarted: boolean = false;                                                             // Whether has started
     main: string = "";                                                                       // Startup file
     base: string = path.dirname((require.main as any).filename);                             // Root path
 
-    routeConfig: string[] = [];                                                              // route.ts
+    // routeConfig: string[] = [];                                                              // route.ts
     masterConfig: ServerInfo = {} as ServerInfo;                                             // master.ts
     serversConfig: { [serverType: string]: ServerInfo[] } = {};                              // servers.ts
-    routeConfig2: string[][] = [];                                                           // route.ts  (split)
+    // routeConfig2: string[][] = [];                                                           // route.ts  (split)
 
     clientNum: number = 0;                                                                   // Number of all socket connections
     clients: { [uid: number]: I_clientSocket } = {};                                         // Sockets that have been binded
     settings: { [key: string]: any } = {};                                                   // User set，get  
 
     servers: { [serverType: string]: ServerInfo[] } = {};                                    // All user servers that are running
-    serversIdMap: { [id: string]: ServerInfo } = {};                                         // All user servers that are running (Dictionary format)
+    serversNameMap: { [serverName: string]: ServerInfo } = {};                               // All user servers that are running (Dictionary format)
 
     serverInfo: ServerInfo = {} as ServerInfo;                                               // The configuration of this server
     isDaemon: boolean = false;                                                               // Whether to run in the background
     env: string = "";                                                                        // environment
-    serverId: string = "";                                                                   // Server name id, the unique identifier of the server
+    serverName: string = "";                                                                   // Server name id, the unique identifier of the server
     serverType: string = "";                                                                 // Server type
     frontend: boolean = false;                                                               // Is it a front-end server
     startMode: "all" | "alone" = "all";                                                      // Start Mode:  all / alone
     startTime: number = 0;                                                                   // Start time
 
     router: { [serverType: string]: (session: Session) => string } = {};                     // Pre-selection when routing messages to the backend
-    rpc: (serverId: string, type: string, eventName: RpcEvent, ...args:any[]) => void;// => Rpc = null as any;                                            // Rpc packaging
-    rpcAwait: (serverId: string, notify: boolean) => void;// => Rpc = null as any;                      // Rpc await packaging
+    /**
+     * @param serverName 要发往的服务器的名称
+     * @param type 如果ServerId === * 时，会把RPC发送给该类型的服务器
+     * @param eventName RpcEvent
+     * @param args 参数们，此处的参数理应要能被JSON转为字符串
+     */
+    rpc: (serverName: string, type: string, eventName: RpcEvent, ...args: any[]) => void;// => Rpc = null as any;           
+      /**
+     * @param serverName 要发往的服务器的名称
+     * @param type 如果ServerId === * 时，会报错，await不支持发往多个服务器
+     * @param eventName RpcEvent
+     * @param args 参数们，此处的参数理应要能被JSON转为字符串
+     * @return Promise<any[]>  因为同一个事件可能有多个方法监听，因此最后返回来的值，是一个数组 ，默认取 下标0 即可
+     */                                 // Rpc packaging
+    rpcAwait: (serverName: string, type: string, eventName: RpcEvent, ...args: any[]) => Promise<any[]>;// => Rpc = null as any;                      // Rpc await packaging
     rpcPool: RpcSocketPool = new RpcSocketPool();                                            // Rpc socket pool
 
     logger: (type: loggerType, level: loggerLevel, msg: string) => void = function () { };                      // Internal msg log output
@@ -62,6 +76,8 @@ export default class Application extends EventEmitter {
     frontendServer: FrontendServer = null as any;
     backendServer: BackendServer = null as any;
 
+    InstanceMap = new Map();
+
     constructor() {
         super();
         appUtil.defaultConfiguration(this);
@@ -72,7 +88,7 @@ export default class Application extends EventEmitter {
      */
     start() {
         if (this.hasStarted) {
-            console.error("the app has already started");
+            errLog("the app has already started");
             return;
         }
         this.hasStarted = true;
@@ -130,7 +146,7 @@ export default class Application extends EventEmitter {
      * Get a server configuration
      */
     getServerById(serverId: string) {
-        return this.serversIdMap[serverId];
+        return this.serversNameMap[serverId];
     }
 
     /**
@@ -161,7 +177,14 @@ export default class Application extends EventEmitter {
         return this.clients;
     }
 
+    public killAllClients() {
+        for (let uid in this.clients) {
+            this.clients[uid].close();
+        }
+    }
+
     /**
+     * 只有前端服可以使用
      * Send a message to the client
      * @param cmd   cmd
      * @param msg   message
@@ -171,11 +194,15 @@ export default class Application extends EventEmitter {
         if (msg === undefined) {
             msg = null;
         }
-        console.log("app sendMsgByUid", mainKey, sonKey);
+
         let msgBuf = this.protoEncode(mainKey, sonKey, msg, false);
         let client: I_clientSocket;
         let i: number;
         for (i = 0; i < uids.length; i++) {
+            if (uids[i] == null) {
+                continue;
+            }
+
             client = this.clients[uids[i]];
             if (client) {
                 client.send(msgBuf);
@@ -192,7 +219,7 @@ export default class Application extends EventEmitter {
         if (msg === undefined) {
             msg = null;
         }
-        console.log("app sendAll", mainKey, sonKey);
+        // logInfo("app sendAll", mainKey, sonKey, this.clients);
         let data = this.protoEncode(mainKey, sonKey, msg, false);
         let uid: string;
         for (uid in this.clients) {
@@ -210,6 +237,7 @@ export default class Application extends EventEmitter {
         if (msg === undefined) {
             msg = null;
         }
+
         this.backendServer.sendMsgByUidSid(mainKey, sonKey, msg, uidsid);
     }
 

@@ -3,13 +3,21 @@
  */
 
 
-import Application from "../application";
+import { Application } from "../application";
 import { MonitorCli } from "./cliUtil";
 import { TcpClient } from "./tcpClient";
 import define = require("../util/define");
 import { SocketProxy, monitor_get_new_server, monitor_remove_server, loggerLevel, monitor_reg_master, ServerInfo, loggerType } from "../util/interfaceDefine";
 import { encodeInnerData } from "./msgCoder";
 import * as rpcClient from "./rpcClient";
+import { errLog } from "../LogTS";
+import { TSEventCenter } from "../utils/TSEventCenter";
+import { FrameEvent } from "../event/FrameEvent";
+const BSON = require('bson');
+const Long = BSON.Long;
+let serverIdsArr: string[] = [];
+let hasStartAll = false;
+
 
 
 export function start(_app: Application) {
@@ -32,6 +40,14 @@ export class monitor_client_proxy {
         this.app = app;
         this.monitorCli = new MonitorCli(app);
         this.doConnect(0);
+        let serversConfig = app.serversConfig;
+        for (let x in serversConfig) {
+            let arr = serversConfig[x];
+            for (let one of arr) {
+                serverIdsArr.push(one.serverName);
+            }
+        }
+        removeFromArr(serverIdsArr, app.serverName);
     }
 
     /**
@@ -75,17 +91,23 @@ export class monitor_client_proxy {
      * Received the msg
      */
     private onData(_data: Buffer) {
-        let data: any = JSON.parse(_data.toString());
+        try {
+            let data: any = BSON.deserialize(_data);
 
-        if (data.T === define.Master_To_Monitor.addServer) {
-            this.addServer((data as monitor_get_new_server).servers);
-        } else if (data.T === define.Master_To_Monitor.removeServer) {
-            this.removeServer(data as monitor_remove_server);
-        } else if (data.T === define.Master_To_Monitor.cliMsg) {
-            this.monitorCli.deal_master_msg(this, data);
-        } else if (data.T === define.Master_To_Monitor.heartbeatResponse) {
-            clearTimeout(this.heartbeatTimeoutTimer);
-            this.heartbeatTimeoutTimer = null as any;
+            if (data.T === define.Master_To_Monitor.addServer) {
+                this.addServer((data as monitor_get_new_server).servers);
+            } else if (data.T === define.Master_To_Monitor.removeServer) {
+                this.removeServer(data as monitor_remove_server);
+            } else if (data.T === define.Master_To_Monitor.cliMsg) {
+                this.monitorCli.deal_master_msg(this, data);
+            } else if (data.T === define.Master_To_Monitor.heartbeatResponse) {
+                clearTimeout(this.heartbeatTimeoutTimer);
+                this.heartbeatTimeoutTimer = null as any;
+            }
+        }
+        catch (e: any) {
+            // this.app.logger(loggerType.msg.error, e);
+            errLog("onData error", e);
         }
     }
 
@@ -145,14 +167,14 @@ export class monitor_client_proxy {
             this.diffTimerStart();
         }
         let serversApp = this.app.servers;
-        let serversIdMap = this.app.serversIdMap;
+        let serversIdMap = this.app.serversNameMap;
         let serverInfo: ServerInfo;
         for (let sid in servers) {
             serverInfo = servers[sid];
             if (this.needDiff) {
-                this.addOrRemoveDiffServer(serverInfo.id, true, serverInfo.serverType);
+                this.addOrRemoveDiffServer(serverInfo.serverName, true, serverInfo.serverType);
             }
-            let tmpServer: ServerInfo = serversIdMap[serverInfo.id];
+            let tmpServer: ServerInfo = serversIdMap[serverInfo.serverName];
             if (tmpServer && tmpServer.host === serverInfo.host && tmpServer.port === serverInfo.port) {    // If it already exists and the ip configuration is the same, ignore it (other configurations are not considered, please guarantee by the developer)
                 continue;
             }
@@ -161,16 +183,16 @@ export class monitor_client_proxy {
             }
             if (!!tmpServer) {
                 for (let i = serversApp[serverInfo.serverType].length - 1; i >= 0; i--) {
-                    if (serversApp[serverInfo.serverType][i].id === tmpServer.id) {
+                    if (serversApp[serverInfo.serverType][i].serverName === tmpServer.serverName) {
                         serversApp[serverInfo.serverType].splice(i, 1);
-                        rpcClient.removeSocket(tmpServer.id);
+                        rpcClient.removeSocket(tmpServer.serverName);
                         this.emitRemoveServer(tmpServer);
                         break;
                     }
                 }
             }
             serversApp[serverInfo.serverType].push(serverInfo);
-            serversIdMap[serverInfo.id] = serverInfo;
+            serversIdMap[serverInfo.serverName] = serverInfo;
             this.emitAddServer(serverInfo);
             rpcClient.ifCreateRpcClient(this.app, serverInfo)
         }
@@ -182,16 +204,16 @@ export class monitor_client_proxy {
     private removeServer(msg: monitor_remove_server) {
         if (this.needDiff) {
             this.diffTimerStart();
-            this.addOrRemoveDiffServer(msg.id, false);
+            this.addOrRemoveDiffServer(msg.serverName, false);
         }
-        delete this.app.serversIdMap[msg.id];
+        delete this.app.serversNameMap[msg.serverName];
         let serversApp = this.app.servers;
         if (serversApp[msg.serverType]) {
             for (let i = 0; i < serversApp[msg.serverType].length; i++) {
-                if (serversApp[msg.serverType][i].id === msg.id) {
+                if (serversApp[msg.serverType][i].serverName === msg.serverName) {
                     let tmpInfo = serversApp[msg.serverType][i];
                     serversApp[msg.serverType].splice(i, 1);
-                    rpcClient.removeSocket(msg.id)
+                    rpcClient.removeSocket(msg.serverName)
                     this.emitRemoveServer(tmpInfo);
                     break;
                 }
@@ -230,13 +252,13 @@ export class monitor_client_proxy {
         let servers = this.app.servers;
         for (let serverType in servers) {
             for (let i = servers[serverType].length - 1; i >= 0; i--) {
-                let id = servers[serverType][i].id;
-                if (id === this.app.serverId) {
+                let id = servers[serverType][i].serverName;
+                if (id === this.app.serverName) {
                     continue;
                 }
                 if (!this.removeDiffServers[id]) {
-                    let tmpInfo = this.app.serversIdMap[id];
-                    delete this.app.serversIdMap[id];
+                    let tmpInfo = this.app.serversNameMap[id];
+                    delete this.app.serversNameMap[id];
                     servers[serverType].splice(i, 1);
                     rpcClient.removeSocket(id);
                     this.emitRemoveServer(tmpInfo);
@@ -251,8 +273,20 @@ export class monitor_client_proxy {
      */
     private emitAddServer(serverInfo: ServerInfo) {
         process.nextTick(() => {
-            this.app.emit("onAddServer", serverInfo);
+            // this.app.emit("onAddServer", serverInfo);
+            TSEventCenter.Instance.event(FrameEvent.onAddServer, serverInfo);
         });
+
+        if (!hasStartAll) {
+            removeFromArr(serverIdsArr, serverInfo.serverName);
+            if (serverIdsArr.length === 0) {
+                hasStartAll = true;
+                process.nextTick(() => {
+                    // this.app.emit("onStartAll");
+                    TSEventCenter.Instance.event(FrameEvent.onStartAll);
+                });
+            }
+        }
     }
 
     /**
@@ -260,9 +294,16 @@ export class monitor_client_proxy {
      */
     private emitRemoveServer(serverInfo: ServerInfo) {
         process.nextTick(() => {
-            this.app.emit("onRemoveServer", serverInfo);
+            // this.app.emit("onRemoveServer", serverInfo);
+            TSEventCenter.Instance.event(FrameEvent.onRemoveServer, serverInfo);
         });
     }
 }
 
 
+function removeFromArr<T = any>(arr: T[], one: T) {
+    let index = arr.indexOf(one);
+    if (index !== -1) {
+        arr.splice(index, 1);
+    }
+}

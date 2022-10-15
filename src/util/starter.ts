@@ -1,9 +1,10 @@
 
-import Application from "../application";
+import { Application } from "../application";
 import * as cp from "child_process"
 import * as util from "util"
 import * as os from "os"
 import { ServerInfo } from "../util/interfaceDefine";
+import { errLog } from "../LogTS";
 
 let app: Application = null as any;
 
@@ -34,7 +35,7 @@ function run(server: ServerInfo, cb?: Function) {
         }
         cmd = app.main;
         options.push(cmd);
-        options.push(util.format('id=%s', server.id));
+        options.push(util.format('serverName=%s', server.serverName));
         options.push(util.format('env=%s', app.env));
         options.push(util.format('startMode=%s', app.startMode));
         localrun(process.execPath, "", options, cb);
@@ -44,7 +45,7 @@ function run(server: ServerInfo, cb?: Function) {
         if (arg !== undefined) {
             cmd += arg;
         }
-        cmd += util.format(' "%s" id=%s env=%s startMode=%s', app.main, server.id, app.env, app.startMode);
+        cmd += util.format(' "%s" serverName=%s env=%s startMode=%s', app.main, server.serverName, app.env, app.startMode);
         sshrun(cmd, server.host, cb);
     }
 };
@@ -90,7 +91,7 @@ function spawnProcess(command: string, host: string, options: string[], cb?: Fun
 
     child.on('exit', function (code) {
         if (code !== 0) {
-            console.error('child process exit with error, error code: %s, executed command: %s', code, command);
+            errLog('child process exit with error, error code: %s, executed command: %s', code, command);
         }
         if (typeof cb === 'function') {
             cb(code === 0 ? null : code);

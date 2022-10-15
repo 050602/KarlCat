@@ -3,13 +3,17 @@
  */
 
 
-import Application from "../application";
+import { Application } from "../application";
 import { MasterCli } from "./cliUtil";
 import { SocketProxy, monitor_get_new_server, monitor_remove_server, monitor_reg_master, loggerLevel, loggerType } from "../util/interfaceDefine";
 import tcpServer from "./tcpServer";
 import { runServers } from "../util/starter";
 import define = require("../util/define");
 import * as msgCoder from "./msgCoder";
+import { logInfo } from "../LogTS";
+const BSON = require('bson');
+const Long = BSON.Long;
+
 
 let servers: { [id: string]: Master_ServerProxy } = {};
 let serversDataTmp: monitor_get_new_server = { "T": define.Master_To_Monitor.addServer, "servers": {} };
@@ -27,8 +31,8 @@ function startServer(cb?: Function) {
     tcpServer(app.serverInfo.port, false, startCb, newClientCb);
 
     function startCb() {
-        let str = `listening at [${app.serverInfo.host}:${app.serverInfo.port}]  ${app.serverId}`;
-        console.log(str);
+        let str = `listening at [${app.serverInfo.host}:${app.serverInfo.port}]  ${app.serverName}`;
+        logInfo(str);
         app.logger(loggerType.frame, loggerLevel.info, str);
         cb && cb();
         if (app.startMode === "all") {
@@ -73,7 +77,7 @@ class UnregSocket_proxy {
 
         let data: monitor_reg_master;
         try {
-            data = JSON.parse(_data.toString());
+            data = BSON.deserialize(_data) as monitor_reg_master;
         } catch (err) {
             app.logger(loggerType.frame, loggerLevel.error, `master -> unregistered socket, JSON parse error, close it, ${socket.remoteAddress}`);
             socket.close();
@@ -96,7 +100,7 @@ class UnregSocket_proxy {
                 socket.close();
                 return;
             }
-            if (!data.serverInfo || !data.serverInfo.id || !data.serverInfo.host || !data.serverInfo.port || !data.serverInfo.serverType) {
+            if (!data.serverInfo || !data.serverInfo.serverName || !data.serverInfo.host || !data.serverInfo.port || !data.serverInfo.serverType) {
                 app.logger(loggerType.frame, loggerLevel.error, `master -> illegal serverInfo, close it, ${socket.remoteAddress}`);
                 socket.close();
                 return;
@@ -157,8 +161,8 @@ export class Master_ServerProxy {
     private init(data: monitor_reg_master) {
         let socket = this.socket;
 
-        if (!!servers[data.serverInfo.id]) {
-            app.logger(loggerType.frame, loggerLevel.error, `master -> already has a monitor named: ${data.serverInfo.id}, close it, ${socket.remoteAddress}`);
+        if (!!servers[data.serverInfo.serverName]) {
+            app.logger(loggerType.frame, loggerLevel.error, `master -> already has a monitor named: ${data.serverInfo.serverName}, close it, ${socket.remoteAddress}`);
             socket.close();
             return;
         }
@@ -169,7 +173,7 @@ export class Master_ServerProxy {
         socket.on('close', this.onClose.bind(this));
 
 
-        this.sid = data.serverInfo.id;
+        this.sid = data.serverInfo.serverName;
         this.serverType = data.serverInfo.serverType;
 
         // Construct a new server message
@@ -217,7 +221,7 @@ export class Master_ServerProxy {
     private onData(_data: Buffer) {
         let data: any;
         try {
-            data = JSON.parse(_data.toString());
+            data = BSON.deserialize(_data);
         } catch (err) {
             app.logger(loggerType.frame, loggerLevel.error, `master -> JSON parse error，close the monitor named: ${this.sid}, ${this.socket.remoteAddress}`);
             this.socket.close();
@@ -243,7 +247,7 @@ export class Master_ServerProxy {
         delete serversDataTmp.servers[this.sid];
         let serverInfo: monitor_remove_server = {
             "T": define.Master_To_Monitor.removeServer,
-            "id": this.sid,
+            "serverName": this.sid,
             "serverType": this.serverType
         };
         let serverInfoBuf: Buffer = msgCoder.encodeInnerData(serverInfo);
@@ -287,7 +291,7 @@ export class Master_ClientProxy {
     private onData(_data: Buffer) {
         let data: any;
         try {
-            data = JSON.parse(_data.toString());
+            data = BSON.deserialize(_data);
         } catch (err) {
             app.logger(loggerType.frame, loggerLevel.error, `master -> JSON parse error，close the cli: ${this.socket.remoteAddress}`);
             this.socket.close();
@@ -298,7 +302,7 @@ export class Master_ClientProxy {
             if (data.T === define.Cli_To_Master.heartbeat) {
                 this.heartbeatTimeoutTimer.refresh();
             } else if (data.T === define.Cli_To_Master.cliMsg) {
-                app.logger(loggerType.frame, loggerLevel.info, `master -> master get command from the cli: ${this.socket.remoteAddress} ==> ${JSON.stringify(data)}`);
+                app.logger(loggerType.frame, loggerLevel.info, `master -> master get command from the cli: ${this.socket.remoteAddress} ==> ${BSON.serialize(data)}`);
                 masterCli.deal_cli_msg(this, data);
             } else {
                 app.logger(loggerType.frame, loggerLevel.error, `master -> the cli illegal data type close it: ${this.socket.remoteAddress}`);

@@ -6,11 +6,16 @@ import RoleTable from "./RoleTable";
 
 export default class DataBase extends Sigleton {
 
-    public static getInstance(): DataBase {
+    public static SigletonInsName = "DataBase";
+    public static get Instance(): DataBase {
         return super.getInstance(DataBase);
     }
 
+    public initInstance() {
+    }
 
+    public destoryInstance() {
+    }
     public DBIsReady = false;
     public db: mongoose.Mongoose;
 

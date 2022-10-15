@@ -1,10 +1,12 @@
-import Application from "../application";
-import tcpServer from "../components/tcpServer";
-import { I_clientManager, I_clientSocket, SocketProxy, I_connectorConfig } from "../util/interfaceDefine";
-import * as define from "../util/define";
-import { Session } from "../components/session";
 import * as crypto from "crypto";
-import { gzaLog } from "../LogTS";
+import { Application } from "../application";
+import { Session } from "../components/session";
+import tcpServer from "../components/tcpServer";
+import { SocketState } from "../const/SocketState";
+import { logInfo, warningLog } from "../LogTS";
+import { serversConfig } from "../serverConfig/sys/servers";
+import * as define from "../util/define";
+import { I_clientManager, I_clientSocket, I_connectorConfig, SocketProxy } from "../util/interfaceDefine";
 
 let maxLen = 0;
 /**
@@ -45,15 +47,15 @@ export class ConnectorTcp {
 
         // Handshake buffer
         let cipher = crypto.createHash("md5")
-        this.md5 = cipher.update(JSON.stringify(this.app.routeConfig)).digest("hex");
+        this.md5 = cipher.update(JSON.stringify(serversConfig)).digest("hex");
 
-        let routeBuf = Buffer.from(JSON.stringify({ "md5": this.md5, "heartbeat": this.heartbeatTime / 1000 }));
+        let routeBuf = Buffer.from(JSON.stringify({ "md5": this.md5, "heartbeat": this.heartbeatTime * 0.001 }));
         this.handshakeBuf = Buffer.alloc(routeBuf.length + 5);
         this.handshakeBuf.writeUInt32BE(routeBuf.length + 1, 0);
         this.handshakeBuf.writeUInt8(define.Server_To_Client.handshake, 4);
         routeBuf.copy(this.handshakeBuf, 5);
 
-        let routeBufAll = Buffer.from(JSON.stringify({ "md5": this.md5, "route": this.app.routeConfig, "heartbeat": this.heartbeatTime / 1000 }));
+        let routeBufAll = Buffer.from(JSON.stringify({ "md5": this.md5, "route": "", "heartbeat": this.heartbeatTime * 0.001 }));
         this.handshakeBufAll = Buffer.alloc(routeBufAll.length + 5);
         this.handshakeBufAll.writeUInt32BE(routeBufAll.length + 1, 0);
         this.handshakeBufAll.writeUInt8(define.Server_To_Client.handshake, 4);
@@ -67,9 +69,15 @@ export class ConnectorTcp {
 
     private newClientCb(socket: SocketProxy) {
         if (this.nowConnectionNum < this.maxConnectionNum) {
+            if (!SocketState.Instance.openClientSocket) {
+                let buf = this.app.protoEncode(1008, 1, { num: 207 }, false);
+                socket.send(buf);
+                socket.close();
+                return;
+            }
             new ClientSocket(this, this.clientManager, socket);
         } else {
-            console.warn("socket num has reached the maxConnectionNum, close it");
+            warningLog("socket num has reached the maxConnectionNum, close it");
             socket.close();
         }
     }
@@ -117,6 +125,7 @@ class ClientSocket implements I_clientSocket {
      * Received data
      */
     private onData(data: Buffer) {
+        // logInfo("ondata", data);
         let type = data.readUInt8(0);
         if (type === define.Client_To_Server.msg) {               // Ordinary custom message
             this.clientManager.handleMsg(this, data);
@@ -132,6 +141,7 @@ class ClientSocket implements I_clientSocket {
      * closed
      */
     private onClose() {
+        logInfo("OnSocker OnClose");
         this.connector.nowConnectionNum--;
         clearTimeout(this.registerTimer);
         clearTimeout(this.heartbeatTimer);
@@ -177,11 +187,14 @@ class ClientSocket implements I_clientSocket {
         if (this.connector.heartbeatTime === 0) {
             return;
         }
+
+        // logInfo("heartbeat");
         if (this.heartbeatTimer) {
             this.heartbeatTimer.refresh();
         } else {
             this.heartbeatTimer = setTimeout(() => {
                 this.close();
+                // logInfo("heartbeat Time out");
             }, this.connector.heartbeatTime * 2);
         }
     }

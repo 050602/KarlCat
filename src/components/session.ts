@@ -3,7 +3,10 @@
  */
 
 
-import Application from "../application";
+const BSON = require('bson');
+const Long = BSON.Long;
+
+import { Application } from "../application";
 import { I_clientSocket, sessionCopyJson } from "../util/interfaceDefine";
 
 let app: Application;
@@ -28,7 +31,7 @@ export class Session {
 
     private resetBuf() {
         if (app.frontend) {
-            let tmpBuf = Buffer.from(JSON.stringify({ "uid": this.uid, "sid": this.sid, "settings": this.settings }));
+            let tmpBuf = BSON.serialize({ "uid": this.uid, "sid": this.sid, "settings": this.settings });
             this.sessionBuf = Buffer.alloc(tmpBuf.length).fill(tmpBuf); // Copy reason: Buffer.from may be allocated from the internal buffer pool, while sessionBuf is almost resident
         }
     }
@@ -44,6 +47,7 @@ export class Session {
             return false;
         }
         app.clients[_uid] = this.socket;
+
         this.uid = _uid;
         this.resetBuf();
         return true;
@@ -107,7 +111,7 @@ export class Session {
      */
     apply() {
         if (!app.frontend) {
-            app.backendServer.sendSession(this.sid, Buffer.from(JSON.stringify({
+            app.backendServer.sendSession(this.sid, Buffer.from(BSON.serialize({
                 "uid": this.uid,
                 "settings": this.settings
             })));
@@ -140,7 +144,6 @@ export class Session {
         if (msg === undefined) {
             msg = null;
         }
-        console.log("session ", mainKey, sonKey);
         let msgBuf = app.protoEncode(mainKey, sonKey, msg, false);
         this.socket.send(msgBuf);
     }

@@ -1,17 +1,23 @@
 
 
-import * as path from "path";
 import * as fs from "fs";
-import Application from "../application";
-import { some_config } from "./define";
+import * as path from "path";
+import { Application } from "../application";
+import { BackendServer } from "../components/backendServer";
+import { FrontendServer } from "../components/frontendServer";
 import * as master from "../components/master";
 import * as monitor from "../components/monitor";
+import { msgCoderSetApp } from "../components/msgCoder";
 import * as rpcServer from "../components/rpcServer";
 import * as rpcService from "../components/rpcService";
-import { FrontendServer } from "../components/frontendServer";
-import { BackendServer } from "../components/backendServer";
+import { errLog, logInfo } from "../LogTS";
+import { masterConfig } from "../serverConfig/sys/master";
+import { serversConfig } from "../serverConfig/sys/servers";
+import { some_config } from "./define";
 import { ServerInfo } from "./interfaceDefine";
-import { msgCoderSetApp } from "../components/msgCoder";
+const BSON = require('bson');
+const Long = BSON.Long;
+
 
 
 /**
@@ -32,23 +38,28 @@ export function defaultConfiguration(app: Application) {
 export function startServer(app: Application) {
     startPng(app);
     msgCoderSetApp(app);
+    logInfo("启动服务器", app.serverName);
     if (app.serverType === "master") {
+        logInfo("启动master服", app.serverName);
         master.start(app);
     } else if (app.frontend) {
+        logInfo("启动前端服", app.serverName);
         rpcService.init(app);
+        app.frontendServer = new FrontendServer(app);
         rpcServer.start(app, function () {
-            app.frontendServer = new FrontendServer(app);
             app.frontendServer.start(function () {
                 monitor.start(app);
             });
         });
 
     } else {
+        logInfo("启动后端服", app.serverName);
         rpcService.init(app);
+        app.backendServer = new BackendServer(app);
         rpcServer.start(app, function () {
-            app.backendServer = new BackendServer(app);
             app.backendServer.init();
             monitor.start(app);
+            // TSEventCenter.Instance.event(KalrEvent.OnServerStart);
         });
     }
 };
@@ -91,38 +102,40 @@ let parseArgs = function (args: any[]) {
 
 
 let loadBaseConfig = function (app: Application) {
-    loadConfigBaseApp(app, "masterConfig", path.join(some_config.File_Dir.Config, 'master.js'));
-    loadConfigBaseApp(app, "serversConfig", path.join(some_config.File_Dir.Config, 'servers.js'));
-    loadConfigBaseApp(app, "routeConfig", path.join(some_config.File_Dir.Config, 'route.js'));
+    // loadConfigBaseApp(app, "masterConfig");
+    // loadConfigBaseApp(app, "serversConfig");
+    let env = app.env;
+    app.masterConfig = masterConfig[env];
+    app.serversConfig = serversConfig[env];
+    parseServersConfig(app.serversConfig);
+    // function loadConfigBaseApp(app: Application, key: "masterConfig" | "serversConfig") {
+    // let env = app.env;
+    // let originPath = path.join(app.base, val);
+    // if (fs.existsSync(originPath)) {
+    //     let file = require(originPath).default;
+    //     if (key === "masterConfig" || key === "serversConfig") {
+    //         if (!file[env]) {
+    //             errLog("ERROR-- no such environment: " + key + "/" + env);
+    //             process.exit();
+    //         }
+    //         file = file[env];
+    //     }
+    //     if (key === "serversConfig") {
+    //         parseServersConfig(file);
+    //     } else if (key === "routeConfig") {
+    //         let arr: string[][] = [];
+    //         for (let one of file) {
+    //             arr.push((one as string).split("."));
+    //         }
+    //         app.routeConfig2 = arr;
+    //     }
 
-    function loadConfigBaseApp(app: Application, key: "masterConfig" | "serversConfig" | "routeConfig", val: string) {
-        let env = app.env;
-        let originPath = path.join(app.base, val);
-        if (fs.existsSync(originPath)) {
-            let file = require(originPath).default;
-            if (key === "masterConfig" || key === "serversConfig") {
-                if (!file[env]) {
-                    console.error("ERROR-- no such environment: " + key + "/" + env);
-                    process.exit();
-                }
-                file = file[env];
-            }
-            if (key === "serversConfig") {
-                parseServersConfig(file);
-            } else if (key === "routeConfig") {
-                let arr: string[][] = [];
-                for (let one of file) {
-                    arr.push((one as string).split("."));
-                }
-                app.routeConfig2 = arr;
-            }
-
-            app[key] = file;
-        } else {
-            console.error("ERROR-- no such file: " + originPath);
-            process.exit();
-        }
-    }
+    //     app[key] = file;
+    // } else {
+    //     errLog("ERROR-- no such file: " + originPath);
+    //     process.exit();
+    // }
+    // }
 };
 
 /** Parse the servers configuration */
@@ -137,8 +150,8 @@ function parseServersConfig(info: { [serverType: string]: ServerInfo[] }) {
                 let port = (one.port as any)[0];
                 let len = (one.port as any)[1] - (one.port as any)[0] + 1;
                 for (let j = 0; j < len; j++) {
-                    let tmpOne: any = JSON.parse(JSON.stringify(one));
-                    tmpOne.id = one.id + (idStart + j).toString();
+                    let tmpOne: any = BSON.deserialize(BSON.serialize(one));
+                    tmpOne.id = one.serverName + (idStart + j).toString();
                     tmpOne.port = port + j;
                     if (one.clientPort) {
                         tmpOne.clientPort = one.clientPort + j;
@@ -155,13 +168,13 @@ function parseServersConfig(info: { [serverType: string]: ServerInfo[] }) {
 }
 
 
-let processArgs = function (app: Application, args: any) {
+let processArgs = function (app: Application, args: { main: string, serverName: string, isDaemon: string, startMode: string }) {
     app.main = args.main;
-    let startAlone = !!args.id;
-    app.serverId = args.id || app.masterConfig.id;
+    let startAlone = !!args.serverName;
+    app.serverName = args.serverName || app.masterConfig.serverName;
     app.isDaemon = !!args.isDaemon;
-    if (app.serverId === app.masterConfig.id) {
-        app.serverInfo = JSON.parse(JSON.stringify(app.masterConfig));
+    if (app.serverName === app.masterConfig.serverName) {
+        app.serverInfo = BSON.deserialize(BSON.serialize(app.masterConfig)) as ServerInfo;
         (app.serverInfo as any).serverType = "master";
         app.serverType = "master";
         app.startMode = startAlone ? "alone" : "all";
@@ -170,8 +183,8 @@ let processArgs = function (app: Application, args: any) {
         let serverConfig: ServerInfo = null as any;
         for (let serverType in app.serversConfig) {
             for (let one of app.serversConfig[serverType]) {
-                if (one.id === app.serverId) {
-                    serverConfig = JSON.parse(JSON.stringify(one));
+                if (one.serverName === app.serverName) {
+                    serverConfig = BSON.deserialize(BSON.serialize(one)) as ServerInfo;
                     (serverConfig as any).serverType = serverType;
                     app.serverType = serverType;
                     break;
@@ -182,7 +195,7 @@ let processArgs = function (app: Application, args: any) {
             }
         }
         if (!serverConfig) {
-            console.error("ERROR-- no such server: " + app.serverId);
+            errLog("ERROR-- no such server: " + app.serverName);
             process.exit();
         }
         app.serverInfo = serverConfig;
@@ -192,7 +205,7 @@ let processArgs = function (app: Application, args: any) {
         servers[app.serverType] = [];
         servers[app.serverType].push(serverConfig);
         app.servers = servers;
-        app.serversIdMap[serverConfig.id] = serverConfig;
+        app.serversNameMap[serverConfig.serverName] = serverConfig;
     }
 };
 
@@ -203,7 +216,7 @@ function startPng(app: Application) {
     let lines = [
         "  ※----------------------※",
         "  ※   ----------------   ※",
-        "  ※  ( mydog  @ahuang )  ※",
+        "  ※  ( kalrcat   @aan )  ※",
         "  ※   ----------------   ※",
         "  ※                      ※",
         "  ※                      ※",
@@ -211,7 +224,7 @@ function startPng(app: Application) {
     ];
     let version = require("../mydog").version;
     version = "Ver: " + version;
-    console.log("      ");
+    logInfo("      ");
     for (let i = 0; i < lines.length; i++) {
         if (i === 5) {
             let j;
@@ -224,7 +237,7 @@ function startPng(app: Application) {
             }
             lines[i] = chars.join('');
         }
-        console.log(lines[i]);
+        logInfo(lines[i]);
     }
-    console.log("  ");
+    logInfo("  ");
 }

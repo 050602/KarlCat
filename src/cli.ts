@@ -7,6 +7,11 @@ import { spawn } from "child_process";
 import * as define from "./util/define";
 import * as msgCoder from "./components/msgCoder";
 import { TcpClient } from "./components/tcpClient";
+import { errLog, gzaLog, logInfo } from "./LogTS";
+const BSON = require('bson');
+const Long = BSON.Long;
+
+
 
 let version = require('../package.json').version;
 let DEFAULT_MASTER_HOST = '127.0.0.1';
@@ -25,10 +30,12 @@ class clientProxy {
     constructor(host: string, port: number, token: string, cb: Function) {
         this.token = token;
         this.connect_cb = cb;
+
         this.socket = new TcpClient(port, host, define.some_config.SocketBufferMaxLen, true, this.connectCb.bind(this));
 
         this.socket.on("data", (buf: Buffer) => {
-            let data = JSON.parse(buf.toString());
+            // console.log("what the fuck222222222222222222");
+            let data = BSON.deserialize(buf);
             let reqId = data.reqId;
             let req = this.reqs[reqId];
             if (!req) {
@@ -53,8 +60,11 @@ class clientProxy {
             T: define.Cli_To_Master.register,
             cliToken: this.token
         };
-        let loginInfo_buf = msgCoder.encodeInnerData(loginInfo);
+        let data1 = JSON.stringify(loginInfo);
+        let data2 = JSON.parse(data1);
+        let loginInfo_buf = msgCoder.encodeInnerData(data2);
         this.socket.send(loginInfo_buf);
+        // console.log("connectCb", loginInfo_buf);
         this.heartbeat();
         this.connect_cb(this);
     }
@@ -72,7 +82,9 @@ class clientProxy {
     request(msg: any, timeout: number, cb: (err: string, ...args: any[]) => void) {
         let reqId = this.reqId++;
         let data = { "T": define.Cli_To_Master.cliMsg, "reqId": reqId, "msg": msg };
-        let buf = msgCoder.encodeInnerData(data);
+        let str = JSON.stringify(data);
+        let data2 = JSON.parse(str);
+        let buf = msgCoder.encodeInnerData(data2);
         this.socket.send(buf);
 
         let self = this;
@@ -478,7 +490,7 @@ commond.parse();
 
 
 function abort(str: string = "") {
-    console.error(str);
+    errLog(str);
     process.exit(1);
 }
 
@@ -794,8 +806,8 @@ function removeT(opts: { "host": string, "port": number, "token": string, "serve
 
 
 function cmd(lans: string[]) {
-    let routePath = "config/sys/route.ts";
-    let serverPath = "config/cmd.ts";
+    let routePath = "serverConfig/sys/route.ts";
+    let serverPath = "serverConfig/cmd.ts";
     let nowPath = process.cwd();
     let filepath = path.join(nowPath, routePath);
     if (!fs.existsSync(filepath)) {
@@ -896,9 +908,9 @@ function send(opts: { "host": string, "port": number, "token": string, "serverId
     endMsg["argv"] = argv;
     let msg = `sendMsg:
 {
-    "serverIds": ${JSON.stringify(serverIds)}
-    "serverTypes": ${JSON.stringify(serverTypes)}
-    "argv": ${JSON.stringify(argv)}
+    "serverIds": ${BSON.serialize(serverIds)}
+    "serverTypes": ${BSON.serialize(serverTypes)}
+    "argv": ${BSON.serialize(argv)}
 }
 (y/n)[no] ?    `
     confirm(msg, (yes) => {
@@ -934,6 +946,6 @@ function send(opts: { "host": string, "port": number, "token": string, "serverId
 
 
 function connectToMaster(host: string, port: number, token: string, cb: (client: clientProxy) => void) {
-    console.log("try to connect  " + host + ":" + port);
+    logInfo("try to connect  " + host + ":" + port, token);
     let client = new clientProxy(host, port, token, cb);
 }

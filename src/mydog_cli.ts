@@ -1,9 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
+import { logInfo } from "./LogTS";
 
 /** 接收 mydog cmd 命令 */
 export function mydog_cmd(lans: string[], cmdObjArr: { "cmd": string, "note": string }[]) {
-    // console.log(lans, cmdObjArr);
+    logInfo(lans, cmdObjArr);
 
     if (lans.includes("ts")) {
         let endStr = 'export const enum cmd {\n'
@@ -56,6 +57,6 @@ export function mydog_cmd(lans: string[], cmdObjArr: { "cmd": string, "note": st
 }
 
 /** 接收 mydog send 命令的消息回调 */
-export function mydog_send(reqArgv: any, timeoutIds: string[], data: { "id": string, "serverType": string, "data": any }[]) {
-    console.log(data);
+export function mydog_send(reqArgv: any, timeoutIds: string[], data: { "serverName": string, "serverType": string, "data": any }[]) {
+    logInfo("mydog_send", data);
 }
