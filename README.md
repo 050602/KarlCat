@@ -1,4 +1,5 @@
 # KalrCat
+version : 2.0
 卡尔猫，基于开源Nodejs服务端框架 Mydog 魔改而成  
 
 使用了Protobuf 作为 协议传输工具
@@ -23,7 +24,10 @@ https://github.com/ahuangege/mydog
 
 need insatll NPM Package : protobufjs  typescript  ws
 
-you can run :  npm i
+you can run :  
+```bash
+npm i
+```
 
 and run this code  by Terminal
 ```bash
