@@ -12,7 +12,9 @@ https://github.com/gh-kL/GameConfig
 Base Mydog remould , NodeJS Server 
 
 Protobuf is used as a protocol tool
+
 Used MongonDB
+
 Used kL GameConfig Tools
 
 # Mydog Home
