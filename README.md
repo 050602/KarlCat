@@ -1,4 +1,4 @@
-# KalrCat
+# KarlCat
 version : 2.0
 卡尔猫，基于开源Nodejs服务端框架 Mydog 魔改而成  
 
@@ -15,7 +15,7 @@ Protobuf is used as a protocol tool
 
 Used MongonDB
 
-Used kL GameConfig Tools
+Used kL GameConfig Tools--but not demo in karlCat
 
 # Mydog Home
 https://www.mydog.wiki
@@ -50,4 +50,4 @@ Add QQ : 441829663
 
 ### QQ Group
 
-* 866134350 [![KalrCat-服务端框架](https://pub.idqqimg.com/wpa/images/group.png)](https://jq.qq.com/?_wv=1027&k=Awf8ZCbt)
+* 866134350 [![KarlCat-服务端框架](https://pub.idqqimg.com/wpa/images/group.png)](https://jq.qq.com/?_wv=1027&k=Awf8ZCbt)
