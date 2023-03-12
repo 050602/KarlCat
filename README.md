@@ -46,6 +46,7 @@ the  NetworkManager.cs , use his Function  "Send"  to  KalrCat
 
 # 需要注意的点
 1.npm start 实际上是把代码编译到dist, 其中 proto下的文件夹protobuf文件夹的内容并不会跟随tsc 一起编译过去，需要自己手动拖到dist上面
+
 2.我完全没有使用过ahuang giegie 的cli工具，因此，命令行相关代码，可能存在问题，请自行调试
 
 # Contact the Me
