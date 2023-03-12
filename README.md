@@ -1,7 +1,9 @@
 # KarlCat
-## 18岁亦菲！
+### 18岁亦菲！
 version : 2.3.6
-卡尔猫，基于开源Nodejs服务端框架 Mydog 魔改而成  
+卡尔猫，基于开源Nodejs服务端框架 Mydog 魔改而成 
+
+基本使用TypeScript开发，仅有个别类库使用js , dist目录是通过src目录编译出来的js
 
 目前支持使用TCP KCP WebSocket 协议
 
