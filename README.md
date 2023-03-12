@@ -1,6 +1,9 @@
 # KarlCat
-version : 2.0
+## 18岁亦菲！
+version : 2.3.6
 卡尔猫，基于开源Nodejs服务端框架 Mydog 魔改而成  
+
+目前支持使用TCP KCP WebSocket 协议
 
 使用了Protobuf 作为 协议传输工具
 
@@ -23,8 +26,7 @@ https://www.mydog.wiki
 https://github.com/ahuangege/mydog
 
 # How to use
-
-need insatll NPM Package : protobufjs  typescript  ws
+need insatll NPM Package
 
 you can run :  
 ```bash
@@ -40,10 +42,8 @@ client is Csharp , In this "Csharp" folder
 
 the  NetworkManager.cs , use his Function  "Send"  to  KalrCat   
 
-# 需要注意的两个点
+# 需要注意的点
 1.npm start 实际上是把代码编译到dist, 其中 proto下的文件夹protobuf文件夹的内容并不会跟随tsc 一起编译过去，需要自己手动拖到dist上面
-
-PS:其实这个卡尔猫源码，我自己都没执行过，因为又要装库到文件夹下，嫌麻烦，有问题直接找我
 
 # Contact the Me
 Add QQ : 441829663
