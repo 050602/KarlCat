@@ -4,7 +4,6 @@ import { TcpClient } from "../components/tcpClient";
 import * as define from "../util/define";
 import * as rpcService from "./rpcService";
 import * as appUtil from "../util/appUtil";
-import { gzaLog } from "../LogTS";
 import { TSEventCenter } from "../utils/TSEventCenter";
 import { FrameEvent } from "../event/FrameEvent";
 const BSON = require('bson');

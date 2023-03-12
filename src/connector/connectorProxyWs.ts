@@ -3,14 +3,12 @@ import { EventEmitter } from "events";
 import * as http from "http";
 import * as https from "https";
 import WebSocket, * as ws from "ws";
-import { isStressTesting } from "../app";
 import { Application } from "../application";
 import { Session } from "../components/session";
 import { logInfo, warningLog } from "../LogTS";
-import { serversConfig } from "../serverConfig/sys/servers";
+import { serversConfig } from "../serverConfig/servers";
 import * as define from "../util/define";
 import { I_clientManager, I_clientSocket, I_connectorConfig, SocketProxy } from "../util/interfaceDefine";
-import { UnitTest } from "../utils/UnitTest";
 
 let maxLen = 0;
 /**
@@ -108,21 +106,7 @@ export class ClientSocket implements I_clientSocket {
         }, 10000);
     }
 
-    private onRegister(data: Buffer, isWoshou: boolean = false) {
-        if (isWoshou) {
-            this.send(this.connector.handshakeBuf);
-
-            clearTimeout(this.registerTimer);
-            this.heartbeat();
-            this.clientManager.addClient(this);
-            if (this.sendCache) {
-                this.sendTimer = setInterval(this.sendInterval.bind(this), this.interval);
-            }
-            this.socket.socket._receiver._maxPayload = maxLen;
-            this.socket.on('data', this.onData.bind(this));
-            return;
-        }
-
+    private onRegister(data: Buffer) {
         let type = data.readUInt8(0);
         if (type === define.Client_To_Server.handshake) {        // shake hands
             this.handshake(data);
@@ -134,14 +118,7 @@ export class ClientSocket implements I_clientSocket {
     /**
      * Received data
      */
-    private onData(data: Buffer, isWoshou: boolean = false) {
-        // logInfo("ondata222", data.toString());
-        if (isWoshou) {
-            let str = data.toString();
-            UnitTest.doSomething(this.clientManager, this, str);
-            return;
-        }
-
+    private onData(data: Buffer) {
         let type = data.readUInt8(0);
         if (type === define.Client_To_Server.msg) {               // Ordinary custom message
             this.clientManager.handleMsg(this, data);
@@ -172,7 +149,7 @@ export class ClientSocket implements I_clientSocket {
     private handshake(data: Buffer) {
         let msg: { "md5": string } = null as any;
         try {
-            msg = JSON.parse(data.slice(1).toString());
+            msg = JSON.parse(data.subarray(1).toString());
         } catch (e) {
         }
         if (!msg) {
@@ -298,26 +275,11 @@ class WsSocket extends EventEmitter implements SocketProxy {
     }
 
     private onData(data: Buffer) {
-        // logInfo("ondata", data.toString());
-        if (isStressTesting) {
-            let protoID = data.toString();
-            if (protoID == "1") {
-                //握手
-                logInfo("connectorProxyWs 握手");
-                this.emit("data", null, true);
-            } else {
-                //把二进制转换为16进制
-                this.emit("data", data, true);
-            }
-            return;
-        }
-
-
         let index = 0;
         while (index < data.length) {
             let msgLen = data.readUInt32BE(index);
             // logInfo("index==", data.length, index < data.length, msgLen, index + 4 + msgLen);
-            this.emit("data", data.slice(index + 4, index + 4 + msgLen));
+            this.emit("data", data.subarray(index + 4, index + 4 + msgLen));
             index += msgLen + 4;
         }
     }

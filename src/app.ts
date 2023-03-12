@@ -5,7 +5,7 @@ import { getCpuUsage } from "./cpuUsage";
 import DataBase from "./database/DataBase";
 import { errLog, logProto } from "./LogTS";
 import { connector, createApp } from "./mydog";
-import { ServerName } from "./serverConfig/sys/route";
+import { ServerName } from "./serverConfig/route";
 export let app = createApp();
 
 export const isDebug = true;

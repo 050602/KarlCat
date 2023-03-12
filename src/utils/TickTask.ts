@@ -58,7 +58,7 @@ export class TickTask extends Sigleton {
      */
     public pushTask(thisObj: any, callback: Function, timestamp: number, ...data: any[]) {
         if (thisObj == null || callback == null) {
-            // gzalog("定时执行的方法不能为空");
+            // console.log("定时执行的方法不能为空");
             errLog("定时执行的对象/方法不能为空");
             return false;
         }
@@ -134,7 +134,7 @@ export class TickTask extends Sigleton {
 
         /**servertime == 0 */
         // if (this._timestamp == 0) {
-        //     // gzalog("未设置时间戳，时间戳非法，请重新设置服务器时间再pushTask");
+        //     // console.log("未设置时间戳，时间戳非法，请重新设置服务器时间再pushTask");
         //     return;
         // }
 

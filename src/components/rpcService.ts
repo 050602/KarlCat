@@ -4,16 +4,11 @@
 
 
 import { Application } from "../application";
-import { I_rpcTimeout, I_rpcMsg, ServerInfo, rpcErr } from "../util/interfaceDefine";
-import * as path from "path";
-import * as fs from "fs";
-import define = require("../util/define");
-import * as appUtil from "../util/appUtil";
-import { I_RpcSocket } from "./rpcSocketPool";
-import { TSEventCenter } from "../utils/TSEventCenter";
 import { RpcEvent } from "../event/RpcEvent";
-import { errLog, gzaLog, logInfo, logRPC } from "../LogTS";
-import { DateUtils } from "../utils/DateUtils";
+import { errLog, logInfo, logRPC } from "../LogTS";
+import { I_rpcMsg, I_rpcTimeout, rpcErr } from "../util/interfaceDefine";
+import { TSEventCenter } from "../utils/TSEventCenter";
+import define = require("../util/define");
 // import BSON from "bson";
 const BSON = require('bson');
 const Long = BSON.Long;
@@ -77,16 +72,16 @@ export function rpcOnNewSocket(sid: string) {
 export function handleMsg(sid: string, bufAll: Buffer) {
     let rpcBufLen = bufAll.readUInt8(1);
     // logInfo("RPC handleMsg>>>>>", app.serverId, bufAll.slice(2, 2 + rpcBufLen).toString(), "<<<<< End");
-    let rpcMsg: I_rpcMsg = BSON.deserialize(bufAll.slice(2, 2 + rpcBufLen)) as I_rpcMsg;
+    let rpcMsg: I_rpcMsg = BSON.deserialize(bufAll.subarray(2, 2 + rpcBufLen)) as I_rpcMsg;
     let msg: any[];
-    // gzaLog("收到RPC", sid, rpcMsg);
+    // console.log("收到RPC", sid, rpcMsg);
     if (rpcMsg.len === undefined) {
-        msg = BSON.deserialize(bufAll.slice(2 + rpcBufLen)) as any;
+        msg = BSON.deserialize(bufAll.subarray(2 + rpcBufLen)) as any;
         msg = Object.values(msg);
     } else {
-        msg = BSON.deserialize(bufAll.slice(2 + rpcBufLen, bufAll.length - rpcMsg.len)) as any;
+        msg = BSON.deserialize(bufAll.subarray(2 + rpcBufLen, bufAll.length - rpcMsg.len)) as any;
         msg = Object.values(msg);
-        msg.push(bufAll.slice(bufAll.length - rpcMsg.len));
+        msg.push(bufAll.subarray(bufAll.length - rpcMsg.len));
     }
 
     if (!rpcMsg.cmd) {
@@ -108,19 +103,16 @@ export function handleMsg(sid: string, bufAll: Buffer) {
 
 export async function handleMsgAwait(sid: string, bufAll: Buffer) {
     let rpcBufLen = bufAll.readUInt8(1);
-    let rpcMsg: I_rpcMsg = BSON.deserialize(bufAll.slice(2, 2 + rpcBufLen)) as I_rpcMsg;
+    let rpcMsg: I_rpcMsg = BSON.deserialize(bufAll.subarray(2, 2 + rpcBufLen)) as I_rpcMsg;
     let msg: any[];
     if (rpcMsg.len === undefined) {
-        msg = BSON.deserialize(bufAll.slice(2 + rpcBufLen));
+        msg = BSON.deserialize(bufAll.subarray(2 + rpcBufLen));
         msg = Object.values(msg);
     }
-    // else if (2 + rpcBufLen + rpcMsg.len === bufAll.length) {
-    //     msg = bufAll.slice(bufAll.length - rpcMsg.len);
-    // } 
     else {
-        msg = BSON.deserialize(bufAll.slice(2 + rpcBufLen, bufAll.length - rpcMsg.len));
+        msg = BSON.deserialize(bufAll.subarray(2 + rpcBufLen, bufAll.length - rpcMsg.len));
         msg = Object.values(msg);
-        msg.push(bufAll.slice(bufAll.length - rpcMsg.len));
+        msg.push(bufAll.subarray(bufAll.length - rpcMsg.len));
     }
 
     if (!rpcMsg.cmd) {
@@ -184,13 +176,13 @@ class rpc_create {
     }
 
     rpcSend(sid: string, type: string, eventName: RpcEvent, ...args: any[]) {
-        // gzaLog("rpcSend", sid, type, eventName);
+        // console.log("rpcSend", sid, type, eventName);
         rpc.send(sid, { "serverType": type, "file_method": eventName }, args);
     }
 
 
     rpcAwaitSend(sid: string, type: string, eventName: RpcEvent, ...args: any[]): Promise<any[]> {
-        // gzaLog("rpcSend", sid, type, eventName);
+        // console.log("rpcSend", sid, type, eventName);
         return rpc.sendAwait(sid, { "serverType": type, "file_method": eventName }, args);
     }
 

@@ -4,7 +4,7 @@ import { Session } from "../components/session";
 import tcpServer from "../components/tcpServer";
 import { SocketState } from "../const/SocketState";
 import { logInfo, warningLog } from "../LogTS";
-import { serversConfig } from "../serverConfig/sys/servers";
+import { serversConfig } from "../serverConfig/servers";
 import * as define from "../util/define";
 import { I_clientManager, I_clientSocket, I_connectorConfig, SocketProxy } from "../util/interfaceDefine";
 
@@ -157,7 +157,7 @@ class ClientSocket implements I_clientSocket {
     private handshake(data: Buffer) {
         let msg: { "md5": string } = null as any;
         try {
-            msg = JSON.parse(data.slice(1).toString());
+            msg = JSON.parse(data.subarray(1).toString());
         } catch (e) {
         }
         if (!msg) {
@@ -210,7 +210,6 @@ class ClientSocket implements I_clientSocket {
      * send data
      */
     send(msg: Buffer) {
-        // gzaLog("send", msg.length);
         if (this.sendCache) {
             this.sendArr.push(msg);
         } else {

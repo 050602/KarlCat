@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { Application } from "../application";
 import { Session } from "../components/session";
-import { ServerName } from "../serverConfig/sys/route";
+import { ServerName } from "../serverConfig/route";
 
 /**
  * socket connection proxy

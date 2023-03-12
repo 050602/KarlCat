@@ -101,7 +101,7 @@ public class NetworkManager  :IFixedUpdatable
         // {
         //     msg = JsonUtility.ToJson(data);
         // }
-        Log.gzaLog("SendMsg", mainKey, sonKey);
+        Log.console.log("SendMsg", mainKey, sonKey);
         // var msg = JsonConvert.SerializeObject(data);
         nowSocket.Send(mainKey, sonKey, data);
     }
@@ -116,7 +116,7 @@ public class NetworkManager  :IFixedUpdatable
             if (msgCache.Count > 0)
             {
                 SocketMsg msg = msgCache[0];
-                Log.gzaLog("ReadMsg", msgCache.Count, msg.mainKey, msg.sonKey);
+                Log.console.log("ReadMsg", msgCache.Count, msg.mainKey, msg.sonKey);
                 msgCache.RemoveAt(0);
                 EventCenter.Instance.eventProtobuf(msg.mainKey, msg.sonKey, msg.msg);
             }
@@ -172,7 +172,7 @@ public class NetworkManager  :IFixedUpdatable
 
         public void DisConnect()
         {
-            Log.gzaLog("DisConnect");
+            Log.console.log("DisConnect");
             if (!isDead)
             {
                 Instance.nowSocket = null;
@@ -203,10 +203,10 @@ public class NetworkManager  :IFixedUpdatable
 
         public void Send(int mainKey, int sonKey, Puerts.ArrayBuffer data)
         {
-            Log.gzaLog("Send", mainKey, sonKey);
+            Log.console.log("Send", mainKey, sonKey);
             var databyte = BufferUtil.ToBytes(data);
             byte[] bytes = Encode(mainKey, sonKey, databyte);
-            Log.gzaLog("Send=", mainKey, sonKey, bytes.Length);
+            Log.console.log("Send=", mainKey, sonKey, bytes.Length);
             try
             {
                 mySocket.BeginSend(bytes, 0, bytes.Length, SocketFlags.None, null, null);
@@ -239,7 +239,7 @@ public class NetworkManager  :IFixedUpdatable
                 // 异步写入结束 
                 mySocket.EndConnect(result);
                 Recive();
-                Log.gzaLog(" 握手");
+                Log.console.log(" 握手");
                 // 握手
                 Proto_Handshake_req msgReq = new Proto_Handshake_req();
                 msgReq.md5 = Instance.md5;
@@ -253,7 +253,7 @@ public class NetworkManager  :IFixedUpdatable
                 byteEnd[index++] = (byte) (msgLen & 0xff);
                 byteEnd[index++] = 2 & 0xff;
                 byteMsg.CopyTo(byteEnd, index);
-                Log.gzaLog("握手发送");
+                Log.console.log("握手发送");
                 mySocket.BeginSend(byteEnd, 0, byteEnd.Length, SocketFlags.None, null, null);
             }
             catch (Exception e)
@@ -320,17 +320,17 @@ public class NetworkManager  :IFixedUpdatable
                         int length = mySocket.EndReceive(asyncResult);
                         if (readType == ReadType.head)
                         {
-                            // Log.gzaLog("头长度", length, headBytes.Length, someBytes.Length, msgBytes);
+                            // Log.console.log("头长度", length, headBytes.Length, someBytes.Length, msgBytes);
                             ReadHead(0, length);
                         }
                         else if (readType == ReadType.some)
                         {
-                            // Log.gzaLog("zhong 长度", length);
+                            // Log.console.log("zhong 长度", length);
                             ReadSome(0, length);
                         }
                         else if (readType == ReadType.msg)
                         {
-                            // Log.gzaLog("msg长度", length);
+                            // Log.console.log("msg长度", length);
                             ReadMsg(0, length);
                         }
 
@@ -354,7 +354,7 @@ public class NetworkManager  :IFixedUpdatable
 
             if (length - readLen < headBytes.Length - byteIndex) // 数据未全部到达
             {
-                // Log.gzaLog("xxxx222");
+                // Log.console.log("xxxx222");
                 Array.Copy(data, readLen, headBytes, byteIndex, length - readLen);
                 byteIndex += length - readLen;
             }
@@ -365,7 +365,7 @@ public class NetworkManager  :IFixedUpdatable
 
                 int allLen = (headBytes[0] << 24) | (headBytes[1] << 16) | (headBytes[2] << 8) | headBytes[3];
                 msgType = headBytes[4];
-                Log.gzaLog("msgType", msgType, allLen);
+                Log.console.log("msgType", msgType, allLen);
                 if (msgType == 1) // 自定义消息
                 {
                     msgBytes = new byte[allLen - 5];
@@ -407,10 +407,10 @@ public class NetworkManager  :IFixedUpdatable
         private void ReadMsg(int readLen, int length)
         {
             readType = ReadType.msg;
-            // Log.gzaLog("读消息。。。===", headBytes.Length, msgBytes.Length, someBytes.Length);
+            // Log.console.log("读消息。。。===", headBytes.Length, msgBytes.Length, someBytes.Length);
             if (msgBytes.Length == 0) // 具体消息长度就是0
             {
-                // Log.gzaLog("读消息。。。", msgBytes.Length, someBytes.Length);
+                // Log.console.log("读消息。。。", msgBytes.Length, someBytes.Length);
                 HandleMsg();
                 msgBytes = null;
 
@@ -433,7 +433,7 @@ public class NetworkManager  :IFixedUpdatable
             {
                 Array.Copy(data, readLen, msgBytes, byteIndex, msgBytes.Length - byteIndex);
                 readLen += msgBytes.Length - byteIndex;
-                // Log.gzaLog("消息已到达", msgBytes.Length, someBytes.Length);
+                // Log.console.log("消息已到达", msgBytes.Length, someBytes.Length);
                 HandleMsg();
 
                 msgBytes = null;
@@ -445,7 +445,7 @@ public class NetworkManager  :IFixedUpdatable
 
         private void HandleMsg()
         {
-            // Log.gzaLog("HandleMsg", msgType, msgType == 1, headBytes.Length, someBytes.Length, msgBytes.Length);
+            // Log.console.log("HandleMsg", msgType, msgType == 1, headBytes.Length, someBytes.Length, msgBytes.Length);
             if (msgType == 1) // 自定义消息
             {
                 int mainKey = (someBytes[0] << 8) + someBytes[1];
@@ -458,7 +458,7 @@ public class NetworkManager  :IFixedUpdatable
                 // msg.msg = blist;
                 msg.msg = msgBytes;
 
-                Log.gzaLog("HandleMsg2", mainKey, sonKey, headBytes.Length, someBytes.Length, msgBytes.Length, msg.msg);
+                Log.console.log("HandleMsg2", mainKey, sonKey, headBytes.Length, someBytes.Length, msgBytes.Length, msg.msg);
                 pushMsg(msg);
             }
             else if (msgType == 2) // 握手回调
@@ -501,13 +501,13 @@ public class NetworkManager  :IFixedUpdatable
             //         route.Add(msg.route[i]);
             //     }
             // }
-            Log.gzaLog("SocketOnOpen");
+            Log.console.log("SocketOnOpen");
             EventCenter.Instance.eventFunc(TSEvent.SocketOnOpen);
         }
 
         private void SendHeartbeat(object source, ElapsedEventArgs e)
         {
-            Log.gzaLog("SendHeartbeat");
+            Log.console.log("SendHeartbeat");
             // 心跳
             byte[] bytes = new byte[5];
             bytes[0] = 1 >> 24 & 0xff;
@@ -536,7 +536,7 @@ public class NetworkManager  :IFixedUpdatable
         {
             if (!isDead)
             {
-                Log.gzaLog("SocketOnClose");
+                Log.console.log("SocketOnClose");
                 EventCenter.Instance.eventFunc(TSEvent.SocketOnClose);
                 DisConnect();
             }
@@ -546,7 +546,7 @@ public class NetworkManager  :IFixedUpdatable
         {
             lock (Instance.lockObj)
             {
-                Log.gzaLog("pushMsg", msg.mainKey, msg.sonKey);
+                Log.console.log("pushMsg", msg.mainKey, msg.sonKey);
                 Instance.msgCache.Add(msg);
             }
         }

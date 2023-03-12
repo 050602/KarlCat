@@ -3,21 +3,16 @@
  */
 
 
-import * as path from "path"
-import { I_someConfig, loggerType, I_clientSocket, I_connectorConfig, I_encodeDecodeConfig, I_rpcConfig, ServerInfo, loggerLevel } from "./util/interfaceDefine";
-import * as appUtil from "./util/appUtil";
 import { EventEmitter } from "events";
-import { RpcSocketPool } from "./components/rpcSocketPool";
-import { FrontendServer } from "./components/frontendServer";
+import * as path from "path";
 import { BackendServer } from "./components/backendServer";
+import { FrontendServer } from "./components/frontendServer";
+import { RpcSocketPool } from "./components/rpcSocketPool";
 import { Session } from "./components/session";
 import { RpcEvent } from "./event/RpcEvent";
-import { errLog, gzaLog } from "./LogTS";
-
-// declare global {
-//     interface Rpc {
-//     }
-// }
+import { errLog } from "./LogTS";
+import * as appUtil from "./util/appUtil";
+import { I_clientSocket, I_encodeDecodeConfig, I_someConfig, loggerLevel, loggerType, ServerInfo } from "./util/interfaceDefine";
 
 export class Application extends EventEmitter {
     appName: string = "hello world";                                                         // App name
@@ -30,6 +25,7 @@ export class Application extends EventEmitter {
     serversConfig: { [serverType: string]: ServerInfo[] } = {};                              // servers.ts
     // routeConfig2: string[][] = [];                                                           // route.ts  (split)
 
+    // * (只有前端服可调用)
     clientNum: number = 0;                                                                   // Number of all socket connections
     clients: { [uid: number]: I_clientSocket } = {};                                         // Sockets that have been binded
     settings: { [key: string]: any } = {};                                                   // User set，get  
@@ -54,14 +50,16 @@ export class Application extends EventEmitter {
      * @param args 参数们，此处的参数理应要能被JSON转为字符串
      */
     rpc: (serverName: string, type: string, eventName: RpcEvent, ...args: any[]) => void;// => Rpc = null as any;           
-      /**
-     * @param serverName 要发往的服务器的名称
-     * @param type 如果ServerId === * 时，会报错，await不支持发往多个服务器
-     * @param eventName RpcEvent
-     * @param args 参数们，此处的参数理应要能被JSON转为字符串
-     * @return Promise<any[]>  因为同一个事件可能有多个方法监听，因此最后返回来的值，是一个数组 ，默认取 下标0 即可
-     */                                 // Rpc packaging
-    rpcAwait: (serverName: string, type: string, eventName: RpcEvent, ...args: any[]) => Promise<any[]>;// => Rpc = null as any;                      // Rpc await packaging
+    /**
+     * 请注意，要使用该方法，必须使用bindAwait
+   * @param serverName 要发往的服务器的名称
+   * @param type 如果ServerId === * 时，会报错，await不支持发往多个服务器
+   * @param eventName RpcEvent
+   * @param args 参数们，此处的参数理应要能被JSON转为字符串
+   * @return Promise<any>  
+   */                                 // Rpc packaging
+    rpcAwait: (serverName: string, eventName: RpcEvent, ...args: any[]) => Promise<any>;// Rpc await packaging
+    rpcDB: (serverName: string, eventName: string, ...args: any[]) => Promise<any>;// Rpc await DB
     rpcPool: RpcSocketPool = new RpcSocketPool();                                            // Rpc socket pool
 
     logger: (type: loggerType, level: loggerLevel, msg: string) => void = function () { };                      // Internal msg log output
@@ -150,6 +148,7 @@ export class Application extends EventEmitter {
     }
 
     /**
+     * * (只有前端服可调用)
      * Routing configuration (deciding which backend to call)
      * @param serverType Back-end server type
      * @param routeFunc Configuration function
@@ -159,6 +158,7 @@ export class Application extends EventEmitter {
     }
 
     /**
+     * (只有前端服可调用)
      * get session by uid
      */
     getSession(uid: number) {
@@ -171,14 +171,22 @@ export class Application extends EventEmitter {
     }
 
     /**
+     * * (只有前端服可调用)
      * get all clients
      */
     getAllClients() {
         return this.clients;
     }
 
+    /**
+     * * (只有前端服可调用)
+     * 断开所有链接
+     */
     public killAllClients() {
         for (let uid in this.clients) {
+            //PS:这里是我项目用到，尝试发送一下被干掉
+            // let msgBuf = this.protoEncode(100, 9, { code: 4}, false);
+            // this.clients[uid].send(msgBuf);
             this.clients[uid].close();
         }
     }
@@ -211,6 +219,7 @@ export class Application extends EventEmitter {
     }
 
     /**
+     * * (只有前端服可调用)
      * Send messages to all clients
      * @param cmd cmd
      * @param msg message
@@ -228,6 +237,7 @@ export class Application extends EventEmitter {
     }
 
     /**
+     * 只有后端服可调用
      * Send a message to the client
      * @param cmd   cmd
      * @param msg   message
@@ -242,6 +252,7 @@ export class Application extends EventEmitter {
     }
 
     /**
+     * 只有后端服可调用 发送的消息都是TO C
      * Send a message to the client
      * @param cmd   cmd
      * @param msg   message

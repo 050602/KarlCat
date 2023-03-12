@@ -149,14 +149,6 @@ export let logRPC = (...data: any[]) => {
   console.log(...data);
 }
 
-export let gzaLog = (...data: any[]) => {
-  // return;
-  if (!isDebug) {
-    return;
-  }
-  console.log(...data, "\n", getTrack());
-};
-
 export let warningLog = (...data: any[]) => {
   logger.warn(data);
   if (!isDebug) {

@@ -1,6 +1,4 @@
-import { app } from "../mydog";
-import { cmd } from "../config/cmd";
-import { lanlu } from "./protobuf/proto.js";
+import { logInfo } from "../LogTS";
 
 
 //该代码没有被使用，查找解码的时候，请查看 protocol.ts
@@ -12,21 +10,19 @@ export function getEncodeDecodeFunc(): { "msgEncode": (mainKey: number, sonKey: 
 
 function msgDecode(mainKey: number, sonKey: number, msgBuf: Buffer, toS: boolean): any {
     // let msg = msgCoder[cmdId].c2s?.decode(msgBuf);
-    // console.log("--->>>", app.routeConfig[cmdId], JSON.stringify(msg));
+    // logInfo("--->>>", app.routeConfig[cmdId], JSON.stringify(msg));
     // return msg;
     let rlanlu = global["lanlu"];
-    let r = lanlu;
     let ptName = 'Pt' + mainKey.toString() + '_' + sonKey + '_tos';
-    console.log("--->>>", mainKey, sonKey, ptName, msgBuf);
+    logInfo("--->>>", mainKey, sonKey, ptName, msgBuf);
     let jsonData: any = rlanlu[ptName].decode(msgBuf);
     return jsonData;
 }
 
 function msgEncode(mainKey: number, sonKey: number, data: any, toS: boolean): Buffer {
     let rlanlu = global["lanlu"];
-    let r = lanlu;
     let encodeData: Uint8Array = rlanlu['Pt' + mainKey + '_' + sonKey + '_toc'].encode(data).finish();
-    console.log("<<<---", mainKey, sonKey);
+    logInfo("<<<---", mainKey, sonKey);
     // return msgCoder[cmdId].s2c?.encode(data).finish() as Buffer;
     return Buffer.from(encodeData);
 }

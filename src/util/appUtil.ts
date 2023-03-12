@@ -1,7 +1,5 @@
 
 
-import * as fs from "fs";
-import * as path from "path";
 import { Application } from "../application";
 import { BackendServer } from "../components/backendServer";
 import { FrontendServer } from "../components/frontendServer";
@@ -10,10 +8,9 @@ import * as monitor from "../components/monitor";
 import { msgCoderSetApp } from "../components/msgCoder";
 import * as rpcServer from "../components/rpcServer";
 import * as rpcService from "../components/rpcService";
-import { errLog, logInfo } from "../LogTS";
-import { masterConfig } from "../serverConfig/sys/master";
-import { serversConfig } from "../serverConfig/sys/servers";
-import { some_config } from "./define";
+import { errLog } from "../LogTS";
+import { masterConfig } from "../serverConfig/master";
+import { serversConfig } from "../serverConfig/servers";
 import { ServerInfo } from "./interfaceDefine";
 const BSON = require('bson');
 const Long = BSON.Long;
@@ -38,12 +35,12 @@ export function defaultConfiguration(app: Application) {
 export function startServer(app: Application) {
     startPng(app);
     msgCoderSetApp(app);
-    logInfo("启动服务器", app.serverName);
+    // console.log("启动服务器", app.serverName);
     if (app.serverType === "master") {
-        logInfo("启动master服", app.serverName);
+        console.log("启动master服", app.serverName);
         master.start(app);
     } else if (app.frontend) {
-        logInfo("启动前端服", app.serverName);
+        console.log("启动前端服", app.serverName);
         rpcService.init(app);
         app.frontendServer = new FrontendServer(app);
         rpcServer.start(app, function () {
@@ -53,7 +50,7 @@ export function startServer(app: Application) {
         });
 
     } else {
-        logInfo("启动后端服", app.serverName);
+        console.log("启动后端服", app.serverName);
         rpcService.init(app);
         app.backendServer = new BackendServer(app);
         rpcServer.start(app, function () {
@@ -108,34 +105,6 @@ let loadBaseConfig = function (app: Application) {
     app.masterConfig = masterConfig[env];
     app.serversConfig = serversConfig[env];
     parseServersConfig(app.serversConfig);
-    // function loadConfigBaseApp(app: Application, key: "masterConfig" | "serversConfig") {
-    // let env = app.env;
-    // let originPath = path.join(app.base, val);
-    // if (fs.existsSync(originPath)) {
-    //     let file = require(originPath).default;
-    //     if (key === "masterConfig" || key === "serversConfig") {
-    //         if (!file[env]) {
-    //             errLog("ERROR-- no such environment: " + key + "/" + env);
-    //             process.exit();
-    //         }
-    //         file = file[env];
-    //     }
-    //     if (key === "serversConfig") {
-    //         parseServersConfig(file);
-    //     } else if (key === "routeConfig") {
-    //         let arr: string[][] = [];
-    //         for (let one of file) {
-    //             arr.push((one as string).split("."));
-    //         }
-    //         app.routeConfig2 = arr;
-    //     }
-
-    //     app[key] = file;
-    // } else {
-    //     errLog("ERROR-- no such file: " + originPath);
-    //     process.exit();
-    // }
-    // }
 };
 
 /** Parse the servers configuration */
@@ -216,7 +185,7 @@ function startPng(app: Application) {
     let lines = [
         "  ※----------------------※",
         "  ※   ----------------   ※",
-        "  ※  ( kalrcat   @aan )  ※",
+        "  ※  ( karlcat   @aan )  ※",
         "  ※   ----------------   ※",
         "  ※                      ※",
         "  ※                      ※",
@@ -224,7 +193,7 @@ function startPng(app: Application) {
     ];
     let version = require("../mydog").version;
     version = "Ver: " + version;
-    logInfo("      ");
+    console.log("      ");
     for (let i = 0; i < lines.length; i++) {
         if (i === 5) {
             let j;
@@ -237,7 +206,7 @@ function startPng(app: Application) {
             }
             lines[i] = chars.join('');
         }
-        logInfo(lines[i]);
+        console.log(lines[i]);
     }
-    logInfo("  ");
+    console.log("  ");
 }

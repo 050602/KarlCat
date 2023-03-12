@@ -10,8 +10,6 @@ import { RegisterSigleton } from "../register/RegisterSigleton";
 import { TSEventCenter } from "../utils/TSEventCenter";
 import { initSessionApp, Session } from "./session";
 import { logInfo, logProto, warningLog } from "../LogTS";
-import { isStressTesting } from "../app";
-import { RpcEvent } from "../event/RpcEvent";
 const BSON = require('bson');
 const Long = BSON.Long;
 
@@ -43,8 +41,8 @@ export class BackendServer {
      */
     private loadHandler() {
         RegisterSigleton.initBack(this);
-        TSEventCenter.Instance.bind(RpcEvent.OnRoleAcitveOutLine, this, this.clearQueue);
-        TSEventCenter.Instance.bind(RpcEvent.OnRoleNetDisconnection, this, this.clearQueue);
+        // TSEventCenter.Instance.bind(RpcEvent.OnRoleAcitveOutLine, this, this.clearQueue);
+        // TSEventCenter.Instance.bind(RpcEvent.OnRoleNetDisconnection, this, this.clearQueue);
     }
 
 
@@ -60,14 +58,14 @@ export class BackendServer {
     handleMsg(id: string, msg: Buffer) {
         let sessionLen = msg.readUInt16BE(1);
         // logInfo("msgLen", msg.length);
-        let sessionBuf = msg.slice(3, 3 + sessionLen); //截取了3-41位的数据
+        let sessionBuf = msg.subarray(3, 3 + sessionLen); //截取了3-41位的数据
         let session = new Session();
 
         session.setAll(BSON.deserialize(sessionBuf) as sessionCopyJson);
         let mainKey = msg.readUInt16BE(3 + sessionLen);
         let sonKey = msg.readUInt16BE(5 + sessionLen);
         //此处返回的是Protobuf的结构体，而不是Buffer
-        let data = this.app.msgDecode(mainKey, sonKey, msg.slice(7 + sessionLen), true);
+        let data = this.app.msgDecode(mainKey, sonKey, msg.subarray(7 + sessionLen), true);
         logProto(">>>>>>>>>>>>>>>" + this.app.serverName + " 收到消息", mainKey + "-" + sonKey, id, data);
 
         let queue = this.protoQueue.get(session.uid);

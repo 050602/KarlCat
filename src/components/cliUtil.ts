@@ -4,9 +4,7 @@
 
 
 import { Application } from "../application";
-import { logInfo } from "../LogTS";
 import define = require("../util/define");
-import { DateUtils } from "../utils/DateUtils";
 import { Master_ServerProxy, Master_ClientProxy } from "./master";
 import { monitor_client_proxy } from "./monitor";
 const BSON = require('bson');
@@ -243,7 +241,7 @@ function getListInfo(app: Application) {
 }
 
 function formatTime(time: number) {
-    time = Math.floor((DateUtils.timestamp() - time) * 0.001);
+    time = Math.floor((Date.now()- time) * 0.001);
     var days = Math.floor(time / (24 * 3600));
     time = time % (24 * 3600);
     var hours = Math.floor(time / 3600);

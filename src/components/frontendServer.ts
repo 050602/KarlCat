@@ -1,17 +1,14 @@
 
 import { Application } from "../application";
 import * as protocol from "../connector/protocol";
-import * as protocolBG from "../connector/protocolBG";
 import { RegisterSigleton } from "../register/RegisterSigleton";
-import { getNameByMainKey, isFrontend, ServerName } from "../serverConfig/sys/route";
+import { getNameByMainKey, isFrontend, ServerName } from "../serverConfig/route";
 import { I_clientManager, I_clientSocket, I_connectorConstructor, I_encodeDecodeConfig, loggerLevel, loggerType, sessionCopyJson } from "../util/interfaceDefine";
 import { KalrEvent } from "../event/KalrEvent";
 import { TSEventCenter } from "../utils/TSEventCenter";
 import { initSessionApp, Session } from "./session";
 import define = require("../util/define");
 import { logInfo, logProto, warningLog } from "../LogTS";
-import { isStressTesting } from "../app";
-import { DateUtils } from "../utils/DateUtils";
 const BSON = require('bson');
 const Long = BSON.Long;
 
@@ -25,13 +22,8 @@ export class FrontendServer {
 
         let defaultEncodeDecode: Required<I_encodeDecodeConfig> = protocol.default_encodeDecode;
 
-        if (this.app.serverType == ServerName.background) {
-            protocolBG.init(this.app);
-            defaultEncodeDecode = protocolBG.bg_encodeDecode;
-        } else {
-            protocol.init(this.app);
-            defaultEncodeDecode = protocol.default_encodeDecode;
-        }
+        protocol.init(this.app);
+        defaultEncodeDecode = protocol.default_encodeDecode;
 
         let encodeDecodeConfig = this.app.someconfig.encodeDecode || {};
         this.app.protoEncode = encodeDecodeConfig.protoEncode || defaultEncodeDecode.protoEncode;
@@ -113,7 +105,7 @@ export class FrontendServer {
      * Sync session
      */
     applySession(data: Buffer) {
-        let session = BSON.deserialize(data.slice(1)) as sessionCopyJson;
+        let session = BSON.deserialize(data.subarray(1)) as sessionCopyJson;
         let client = this.app.clients[session.uid];
         if (client) {
             client.session.applySession(session.settings);
@@ -124,22 +116,17 @@ export class FrontendServer {
      */
     sendMsgByUids(data: Buffer) {
         let uidsLen = data.readUInt16BE(1);
-        let msgBuf = data.slice(3 + uidsLen * 4);
+        let msgBuf = data.subarray(3 + uidsLen * 4);
         let clients = this.app.clients;
         let client: I_clientSocket;
         let i: number;
 
 
-        // gzaLog("sendMsgByUids", uidsLen, this.app.serverId);
+        // console.log("sendMsgByUids", uidsLen, this.app.serverId);
         for (i = 0; i < uidsLen; i++) {
             let idddd = data.readUInt32BE(3 + i * 4);
 
             client = clients[idddd];
-
-            if (isStressTesting) {
-                let data = this.app.protoDecode(msgBuf);
-                TSEventCenter.Instance.event(KalrEvent.OnUnitTestProto + data.mainKey + "_" + data.sonKey, data.msg);
-            }
 
             if (client) {
                 client.send(msgBuf);
@@ -243,28 +230,27 @@ class ClientManager implements I_clientManager {
             if (isFrontend(data.mainKey)) {
                 //此处返回的是Protobuf的结构体，而不是Buffer
                 //同IP防DDOS
-                if (!isStressTesting) {
-                    let ip = client.session.getIp();
-                    let time = this.proto100Time.get(ip);
-                    let time2 = DateUtils.timestamp();
-                    if (time) {
-                        let cha = time2 - time;
-                        if (cha > 10000) {
-                            this.proto100Time.set(ip, time2);
-                            this.proto100Count.set(ip, 1);
-                        } else {
-                            let count = this.proto100Count.get(ip);
-                            if (count > 15) {
-                                warningLog("理论上十秒内，不应该超过请求15次协议 ip:", ip, data.mainKey, data.sonKey);
-                                return;
-                            }
-                            this.proto100Count.set(ip, count + 1)
-                        }
-                    } else {
+                let ip = client.session.getIp();
+                let time = this.proto100Time.get(ip);
+                let time2 = Date.now();
+                if (time) {
+                    let cha = time2 - time;
+                    if (cha > 10000) {
                         this.proto100Time.set(ip, time2);
                         this.proto100Count.set(ip, 1);
+                    } else {
+                        let count = this.proto100Count.get(ip);
+                        if (count > 15) {
+                            warningLog("理论上十秒内，不应该超过请求15次协议 ip:", ip, data.mainKey, data.sonKey);
+                            return;
+                        }
+                        this.proto100Count.set(ip, count + 1)
                     }
+                } else {
+                    this.proto100Time.set(ip, time2);
+                    this.proto100Count.set(ip, 1);
                 }
+                
                 let msg = this.app.msgDecode(data.mainKey, data.sonKey, data.msg, true);
                 logProto(">>>>>>>>>>>>>>>" + this.app.serverName + " 收到消息", data.mainKey + "-" + data.sonKey, client.session.uid, msg);
                 if (client.session.uid) {
@@ -284,7 +270,7 @@ class ClientManager implements I_clientManager {
             } else {
                 let uid = client.session.uid;
                 let time = this.protoTime.get(uid);
-                let time2 = DateUtils.timestamp();
+                let time2 = Date.now();
                 if (time) {
                     let cha = time2 - time;
                     if (cha > 10000) {
@@ -355,10 +341,6 @@ class ClientManager implements I_clientManager {
             }
             //callback都是给前端的，因此直接TOS = False
             logProto("<<<<<<<<<<<<<<< 发送消息", mainKey + "-" + sonKey, client.session && client.session.uid, msg);
-            if (isStressTesting) {
-                TSEventCenter.Instance.event(KalrEvent.OnUnitTestProto + mainKey + "_" + sonKey, msg);
-            }
-
             let buf = self.app.protoEncode(mainKey, sonKey, msg, false);
             client.send(buf);
         }
@@ -377,9 +359,6 @@ class ClientManager implements I_clientManager {
             //callback都是给前端的，因此直接TOS = False
             logProto("<<<<<<<<<<<<<<< 发送消息", mainKey + "-" + sonKey, msg);
             let buf = self.app.protoEncode(mainKey, sonKey, msg, false);
-            if (isStressTesting) {
-                TSEventCenter.Instance.event(KalrEvent.OnUnitTestProto + mainKey + "_" + sonKey, msg);
-            }
             client.send(buf);
         }
     }

@@ -3,7 +3,6 @@ const BSON = require('bson');
 const Long = BSON.Long;
 
 import { Application } from "../application";
-import { gzaLog } from "../LogTS";
 import define = require("../util/define");
 import { loggerLevel, loggerType, SocketProxy } from "../util/interfaceDefine";
 
@@ -31,7 +30,7 @@ export function decode(socket: SocketProxy, msg: Buffer) {
                     return;
                 }
                 if (msg.length - readLen >= socket.len) { // data coming all
-                    socket.emit("data", msg.slice(readLen, readLen + socket.len));
+                    socket.emit("data", msg.subarray(readLen, readLen + socket.len));
                     readLen += socket.len;
                     socket.len = 0;
                     socket.headLen = 0;

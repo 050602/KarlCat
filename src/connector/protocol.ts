@@ -1,7 +1,7 @@
 
 import { isDebug } from "../app";
 import { Application } from "../application";
-import { errLog, gzaLog, logInfo, warningLog } from "../LogTS";
+import { errLog,logInfo, warningLog } from "../LogTS";
 import { lanlu } from "../proto/protobuf/proto.js";
 import * as define from "../util/define";
 import { I_encodeDecodeConfig } from "../util/interfaceDefine";
@@ -18,13 +18,11 @@ export let default_encodeDecode: Required<I_encodeDecodeConfig> = {
         return {
             "mainKey": data.readUInt16BE(1),
             "sonKey": data.readUInt16BE(3),
-            "msg": data.slice(5),
+            "msg": data.subarray(5),
             "toS": true
         }
     },
     "msgDecode": function (mainKey: number, sonKey: number, msg: Buffer, toS: boolean): any {
-        // logInfo("msgDecode", mainKey, sonKey, toS);
-        // gzaLog("解析长度", msg.length);
         let rlanlu = global["lanlu"];
         let r = lanlu;
         if (toS) {

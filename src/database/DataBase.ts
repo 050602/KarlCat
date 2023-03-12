@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import { Sigleton } from "../core/Sigleton";
-import { gzaLog } from "../LogTS";
 import LoginTable from "./LoginTable";
 import RoleTable from "./RoleTable";
 
@@ -31,7 +30,7 @@ export default class DataBase extends Sigleton {
 
                 resolve(null);
             }).catch((err) => {
-                gzaLog("数据库链接失败", err);
+                console.log("数据库链接失败", err);
                 reject(null)
             })
         });

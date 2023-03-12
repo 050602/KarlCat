@@ -7,7 +7,7 @@ import { spawn } from "child_process";
 import * as define from "./util/define";
 import * as msgCoder from "./components/msgCoder";
 import { TcpClient } from "./components/tcpClient";
-import { errLog, gzaLog, logInfo } from "./LogTS";
+import { errLog, logInfo } from "./LogTS";
 const BSON = require('bson');
 const Long = BSON.Long;
 
@@ -530,8 +530,9 @@ function init() {
                     let oCurrent = path.resolve(origin, datalist[i]);
                     let tCurrent = path.resolve(target, datalist[i]);
                     if (fs.statSync(oCurrent).isFile()) {
-                        fs.writeFileSync(tCurrent, fs.readFileSync(oCurrent, ''), '');
-                        console.log('   create :  ' + tCurrent);
+                        console.error("此处ahuang的代码已被注释");
+                        // fs.writeFileSync(tCurrent, fs.readFileSync(oCurrent, ''), '');
+                        // console.log('   create :  ' + tCurrent);
                     } else if (fs.statSync(oCurrent).isDirectory()) {
                         copy(oCurrent, tCurrent);
                     }
