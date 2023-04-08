@@ -14,6 +14,8 @@ version : 2.3.6
 使用kL的开源配置工具--目前没有示例在卡尔猫
 https://github.com/gh-kL/GameConfig
 
+nodejs---> pomelo ---> pinus ---> mydog ---> karlcat
+
 Base Mydog remould , NodeJS Server 
 
 Protobuf is used as a protocol tool
