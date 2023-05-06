@@ -3,6 +3,10 @@
 version : 2.3.6
 卡尔猫，基于开源Nodejs服务端框架 Mydog 魔改而成 
 
+nodejs一把梭，当你还在苦苦为其他语言的各种特性考虑时，用NodeJs早已上线验证了
+想要学习后端思维，可以先用Nodejs这个较低技术学习成本的东西跑一遍，游戏后端的思想是相似的，只要学会了KarlCat，转换到其他语言框架，经验也能用得上，懂我意思吧？听懂掌声，来给star谢谢
+
+
 基本使用TypeScript开发，仅有个别类库使用js , dist目录是通过src目录编译出来的js
 
 目前支持使用TCP KCP WebSocket 协议
