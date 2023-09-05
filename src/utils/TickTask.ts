@@ -1,5 +1,6 @@
 import { Sigleton } from "../core/Sigleton";
-import { errLog, logServer, warningLog } from "../LogTS";
+import { errLog, getTrack, logInfo, logServer, warningLog } from "../LogTS";
+import { DateUtils } from "./DateUtils";
 
 /**
 * 定时任务队列
@@ -7,13 +8,13 @@ import { errLog, logServer, warningLog } from "../LogTS";
 */
 export class TickTask extends Sigleton {
 
-    private TaskDic: Map<number, any[][]> = new Map();
-    private queueArr: Array<number> = [];
+    private TaskDic: Map<number, any[][]> = new Map(); //Key 时间戳， Value 任务 [上下文，回调方法，参数]
+    private queueArr: Array<number> = [];//执行任务的时间戳 队列
 
 
 
-    private _pause = false;
-    private isRuning = false;
+    private _pause = false;//是否暂停Tick
+    private isRuning = false;//是否运行中
 
     public static get Instance(): TickTask {
         return super.getInstance(TickTask);
@@ -53,20 +54,32 @@ export class TickTask extends Sigleton {
     /**
      * 增加新的定时任务到队列
      * @param timestamp 需要执行的具体时间戳，单位毫秒
-     * @param func 回调执行的方法
+     * @param callback 回调执行的方法
      * @param data 回调参数
      */
     public pushTask(thisObj: any, callback: Function, timestamp: number, ...data: any[]) {
         if (thisObj == null || callback == null) {
-            // console.log("定时执行的方法不能为空");
+            // gzalog("定时执行的方法不能为空");
             errLog("定时执行的对象/方法不能为空");
             return false;
         }
 
         //任务已过期
-        if (isNaN(timestamp) || timestamp < Date.now()) {
-            warningLog("时间戳非法/该任务已过期", timestamp,Date.now());
+        if (isNaN(timestamp) || timestamp < DateUtils.timestamp()) {
+            warningLog("时间戳非法/该任务已过期", timestamp, DateUtils.timestamp());
+            logServer("时间戳非法/该任务已过期", timestamp, DateUtils.timestamp());
+
+            // let date = new Date();
+            // date.setTime(timestamp);
+            // gzalog("传入时间戳", date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds());
+            // date.setTime(this._timestamp);
+            // gzalog("当前时间戳", date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds());
             return false;
+        }
+
+        if (typeof (timestamp) != "number") {
+            timestamp = parseInt(timestamp);
+            errLog("时间戳是一个字符串，请注意", timestamp);
         }
 
         let newarr = [];
@@ -74,18 +87,24 @@ export class TickTask extends Sigleton {
         newarr.push(callback);
         newarr.push(data);
 
-        logServer("pushTask", newarr);
+        logServer("pushTask", newarr, timestamp, DateUtils.formatFullTime4(timestamp), getTrack());
 
+        //从字典获取该时间戳是否存在任务队列
         let arr = this.TaskDic.get(timestamp);
         if (!arr) {
             arr = [];
+            //没有的话，set一个，把时间戳放到 时间戳队列里
             this.queueArr.push(timestamp);
+            //执行时间戳排序
             this.arrDichotomy(this.queueArr);
+            //根据时间戳存放队列任务数组
             this.TaskDic.set(timestamp, arr);
         }
 
+        //把任务 推进任务数组
         arr.push(newarr);
 
+        //当前没有在运行的定时器时，起一个定时器
         if (!this.isRuning) {
             this._time = setInterval(() => {
                 TickTask.Instance.update();
@@ -111,6 +130,7 @@ export class TickTask extends Sigleton {
                 // let cont2 = dic[i][2];
 
                 if (thisObj == obj && func2 == func) {
+                    logServer("removeTask", timestamp, arr[i]);
                     arr.splice(i, 1);
                     i--;
                 }
@@ -119,10 +139,28 @@ export class TickTask extends Sigleton {
             if (arr.length == 0) {
                 this.TaskDic.delete(timestamp);
                 let index = this.queueArr.indexOf(timestamp);
-                this.queueArr.splice(index, 1);
+                if (index != -1) {
+                    this.queueArr.splice(index, 1);
+                }
             }
         }
 
+    }
+
+
+    public hasTask(thisObj: any, func: Function, timestamp: number) {
+        let arr: Array<any> = this.TaskDic.get(timestamp);
+        if (arr) {
+            for (let i = 0; i < arr.length; i++) {
+                let obj = arr[i][0];
+                let func2 = arr[i][1];
+
+                if (thisObj == obj && func2 == func) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private update() {
@@ -134,45 +172,56 @@ export class TickTask extends Sigleton {
 
         /**servertime == 0 */
         // if (this._timestamp == 0) {
-        //     // console.log("未设置时间戳，时间戳非法，请重新设置服务器时间再pushTask");
+        //     // gzalog("未设置时间戳，时间戳非法，请重新设置服务器时间再pushTask");
         //     return;
         // }
 
-        this.checkTask();
+        if (this.queueArr.length > 0) {
+            let curServerTime = DateUtils.timestamp();
+            this.checkTask(this.queueArr[0], curServerTime);
+        }
     }
 
-    private checkTask() {
+    private checkTask(taskTime: number, curServerTime: number) {
         // LOG("checkTask", this.queueArr);
+        //从时间戳队列里取出最前面的时间戳
         if (this.queueArr.length > 0) {
-            let curServerTime = Date.now();
-            let second = this.queueArr[0];
+            // let second = this.queueArr[0];
             // if (second != 84600000000)
             // logTest("checkTask2", curServerTime, second);
-            if (curServerTime >= second) {
-                let arr = this.TaskDic.get(this.queueArr[0]);
+            // 如果当前时间大于任务队列时间戳，则开始执行 对应时间戳的 任务队列数组
+            if (curServerTime > taskTime) {
+                let arr = this.TaskDic.get(taskTime);
                 if (arr) {
+                    logServer("doTask", curServerTime, taskTime, this.queueArr[0]);
+                    this.queueArr.splice(0, 1);
                     for (let key in arr) {
                         let element = arr[key];
+                        logServer("doTask Func", element);
                         let thisObj: Function = element[0];
                         let func: Function = element[1];
                         let data = element[2];
                         if (func) {
                             try {
+                                // logServer("check", thisObj, func);
                                 if (data) {
                                     func.apply(thisObj, data);
                                 } else {
                                     func.apply(thisObj);
                                 }
                             } catch (error) {
-                                errLog("致命错误,TickTask执行的方法里存在错误", second, "\n", error);
+                                errLog("致命错误,TickTask执行的方法里存在错误", taskTime, "\n", error);
+                                logServer("致命错误,TickTask执行的方法里存在错误", taskTime, "\n", error);
                             }
                         }
                     }
                     arr = null;
                 }
-                this.TaskDic.delete(this.queueArr[0]);
-                this.queueArr.splice(0, 1);
-                this.checkTask();
+                this.TaskDic.delete(taskTime);
+                logServer("checkTaskRemoveTask", curServerTime, taskTime);
+                if (this.queueArr.length > 0) {
+                    this.checkTask(this.queueArr[0], curServerTime);
+                }
             }
         } else {
             //当发现无可执行任务时，自行销毁
