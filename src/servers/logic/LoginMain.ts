@@ -11,8 +11,7 @@ export default class LoginMain extends BaseServerLogic {
 
     public initInstance(): void {
         //接收后端服数据 ---注意，后端服只能接收到前端服的消息以及RPC消息
-        TSEventCenter.Instance.bind(RpcEvent.SayHello + "100_1", this, this.test);
-        // TSEventCenter.Instance.bind(KalrEvent.BackendServerDoFuntion + "100_1", this, this.backFun);
+        TSEventCenter.Instance.bind(RpcEvent.SayHello, this, this.test);
     }
 
 
@@ -25,8 +24,4 @@ export default class LoginMain extends BaseServerLogic {
         console.log("test say ", msg)
     }
 
-    //protobuf结构体
-    backFun(data: any) {
-        console.log("后端收到了穿透前端服传递过来的数据")
-    }
 }
