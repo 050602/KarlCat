@@ -85,10 +85,6 @@ async function init() {
     app.start();
 }
 
-// servers 目录为通信消息入口。
-// 如 chat 表示聊天类型服务器，handler目录下接收客户端消息，remote目录下接收服务器之间的rpc调用消息。
-// 客户端发送chat.main.chat消息，服务器将会在servers/chat/handler/main.ts文件中的chat方法处收到消息，
-// 收到消息后调用next()即可发送数据给客户端。开发者调用 app.rpc("chat-server-1").chat.main.offline()，将会在servers/chat/remote/main.ts文件中的offline方法处收到消息。
 // app.ts为程序入口文件
 
 process.on("uncaughtException", function (err: any) {
@@ -97,9 +93,6 @@ process.on("uncaughtException", function (err: any) {
 process.on("unhandledRejection", function (err: any) {
     errLog( "unhandledRejection", err)
 });
-
-
-
 
 function clientOnCallback(session: Session) {
     logProto("one client on", session.uid, app.serverInfo);
