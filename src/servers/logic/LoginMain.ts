@@ -18,7 +18,8 @@ export default class LoginMain extends BaseServerLogic {
 
 
     public destoryInstance(): void {
-        TSEventCenter.Instance.unbind(RpcEvent.SayHello, this,);
+        TSEventCenter.Instance.unbind(RpcEvent.SayHello, this);
+        TSEventCenter.Instance.unbind(KarlCatEvent.BackendServerDoFuntion + "101_1", this);
     }
 
     
