@@ -1,6 +1,5 @@
 import { Sigleton } from "../core/Sigleton";
 import { errLog, getTrack, logInfo, logServer, warningLog } from "../LogTS";
-import { DateUtils } from "./DateUtils";
 
 /**
 * 定时任务队列
@@ -65,9 +64,9 @@ export class TickTask extends Sigleton {
         }
 
         //任务已过期
-        if (isNaN(timestamp) || timestamp < DateUtils.timestamp()) {
-            warningLog("时间戳非法/该任务已过期", timestamp, DateUtils.timestamp());
-            logServer("时间戳非法/该任务已过期", timestamp, DateUtils.timestamp());
+        if (isNaN(timestamp) || timestamp < Date.now()) {
+            warningLog("时间戳非法/该任务已过期", timestamp, Date.now());
+            logServer("时间戳非法/该任务已过期", timestamp, Date.now());
 
             // let date = new Date();
             // date.setTime(timestamp);
@@ -87,7 +86,7 @@ export class TickTask extends Sigleton {
         newarr.push(callback);
         newarr.push(data);
 
-        logServer("pushTask", newarr, timestamp, DateUtils.formatFullTime4(timestamp), getTrack());
+        // logServer("pushTask", newarr, timestamp, DateUtils.formatFullTime4(timestamp), getTrack());
 
         //从字典获取该时间戳是否存在任务队列
         let arr = this.TaskDic.get(timestamp);
@@ -177,7 +176,7 @@ export class TickTask extends Sigleton {
         // }
 
         if (this.queueArr.length > 0) {
-            let curServerTime = DateUtils.timestamp();
+            let curServerTime = Date.now();
             this.checkTask(this.queueArr[0], curServerTime);
         }
     }
