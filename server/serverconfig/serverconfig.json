@@ -1,0 +1,88 @@
+{
+    "zoneid" : 10,
+    "mongodb_connectstring": "mongodb://127.0.0.1:27017/MTJ3DB",
+    "masterConfig" : {"serverName": "master-1", "host": "127.0.0.1", "port": 42368},
+    "logbackupinfo" : {"destIPInfo": "log@10.10.30.109::data", "sourceDir": "./logs/bg", "passwordFilePath": "/data/rsync.password" },
+    "backgroundPort": 4009,
+    "serverinfos" : [ 
+        {            
+            "serverType": "database", 
+            "singleTypeServers": [                
+                { "serverId": 1, "serverName": "database-1", "host": "127.0.0.1", "port": 8888, "frontend": false }
+            ]
+        },
+        {
+            "serverType": "logic", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "logic-1", "host": "127.0.0.1", "port": 8889, "frontend": false}
+            ]
+        },
+        {
+            "serverType": "gate", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "gate-1", "host": "127.0.0.1", "port": 8890, "frontend": true, "clientPort": 4132}
+            ]
+        },
+        {
+            "serverType": "chat", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "chat-1", "host": "127.0.0.1", "port": 8891, "frontend": false}
+            ]
+        },
+        {
+            "serverType": "fight", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "fight-1", "host": "127.0.0.1", "port": 8892, "frontend": false}
+            ]
+        },
+        {
+            "serverType": "scenarios", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "scenarios-1", "host": "127.0.0.1", "port": 8893, "frontend": false}
+            ]
+        },
+        {
+            "serverType": "rankList", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "rankList-1", "host": "127.0.0.1", "port": 8894, "frontend": false}
+            ]
+        },
+        {
+            "serverType": "background", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "background-1", "host": "127.0.0.1", "port": 8895, "frontend": true, "clientPort": 8896 }
+            ]
+        },
+        {
+            "serverType": "logSave", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "logSave-1", "host": "127.0.0.1", "port": 8897, "frontend": false  }
+            ]
+        },
+        {
+            "serverType": "line", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "line-1", "host": "127.0.0.1", "port": 8898, "frontend": true, "clientPort": 11002 }
+            ]
+        },
+        {
+            "serverType": "cross", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "cross-1", "host": "127.0.0.1", "port": 8899, "frontend": false}
+            ]
+        },
+        {
+            "serverType": "social", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "social-1", "host": "127.0.0.1", "port": 8900, "frontend": false }
+            ]
+        },
+        {
+            "serverType": "booth", 
+            "singleTypeServers": [
+                { "serverId": 1, "serverName": "booth-1", "host": "127.0.0.1", "port": 8901, "frontend": false }
+            ]
+        }
+
+    ]
+}

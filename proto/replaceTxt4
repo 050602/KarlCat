@@ -1,0 +1,30 @@
+
+const fs = require('fs');
+const path = require('path');
+
+let args = process.argv;
+let pathPer = args[2];
+var nPath = path.join(__dirname, `${pathPer}/src/proto/protobuf/bgproto.js`);
+var puertsPath = path.join(__dirname, `${pathPer}/src/proto/protobuf/bgproto.js`);
+fs.readFile(nPath, 'utf8', function (err, data) {
+    if (err) throw err;
+    var str = 'const protobuf = require("./protobuf");\nglobal.lanlubg = (function($protobuf) {\n"use strict";\n' + data + 'return $root;\n})(protobuf).lanlubg;';
+    fs.writeFile(nPath, str, 'utf8', (err) => {
+        if (err) throw err;
+        console.log('success done js');
+    })
+
+    fs.writeFile(puertsPath, str, 'utf8', (err) => {
+        if (err) throw err;
+        console.log('success done copy to output js');
+    })
+})
+var nPath2 = path.join(__dirname, `${pathPer}/src/proto/protobuf/bgproto.js.d.ts`);
+fs.readFile(nPath2, 'utf8', function (err, data) {
+    if (err) throw err;
+    data = data.replace('import * as $protobuf from "protobufjs";', "");
+    fs.writeFile(nPath2, 'import * as $protobuf from "./protobuf.js";\n' + data + ' \n export {}', 'utf8', (err) => {
+        if (err) throw err;
+        console.log('success done .d.ts');
+    })
+})

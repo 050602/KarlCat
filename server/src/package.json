@@ -1,0 +1,31 @@
+{
+  "name": "karlcat",
+  "version": "2.4.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx tsc",
+    "poststart": "node ./dist/app.js",
+    "watch": "webpack --watch",
+    "toU3D": "webpack",
+    "posttoU3D": "uglifyjs --rename output/main.js -o output/main.js && node copyJsFile2.js output ../client/Assets/Assets/ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bson": "^4.6.4",
+    "chokidar": "^3.5.3",
+    "log4js": "^6.6.0",
+    "md5": "^2.3.0",
+    "mongoose": "^6.5.3",
+    "protobufjs": "^6.11.2",
+    "typescript": "^4.7.4",
+    "ws": "^8.8.0"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^11.10.0",
+    "webpack": "^5.73.0",
+    "webpack-cli": "^4.10.0"
+  }
+}

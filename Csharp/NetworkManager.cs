@@ -79,7 +79,7 @@ public class NetworkManager  :IFixedUpdatable
     /// </summary>
     /// <param name="cmd">路由名称</param>
     /// <param name="data">数据</param>
-    public void SendMsg(int mainKey, int sonKey, Puerts.ArrayBuffer data)
+    public void SendMsg(int mainKey,  Puerts.ArrayBuffer data)
     {
         // int cmdIndex = route.IndexOf(cmd);
         // if (cmdIndex == -1)
@@ -101,9 +101,9 @@ public class NetworkManager  :IFixedUpdatable
         // {
         //     msg = JsonUtility.ToJson(data);
         // }
-        Log.console.log("SendMsg", mainKey, sonKey);
+        Log.console.log("SendMsg", mainKey);
         // var msg = JsonConvert.SerializeObject(data);
-        nowSocket.Send(mainKey, sonKey, data);
+        nowSocket.Send(mainKey, data);
     }
 
     /// <summary>
@@ -116,9 +116,9 @@ public class NetworkManager  :IFixedUpdatable
             if (msgCache.Count > 0)
             {
                 SocketMsg msg = msgCache[0];
-                Log.console.log("ReadMsg", msgCache.Count, msg.mainKey, msg.sonKey);
+                Log.console.log("ReadMsg", msgCache.Count, msg.mainKey);
                 msgCache.RemoveAt(0);
-                EventCenter.Instance.eventProtobuf(msg.mainKey, msg.sonKey, msg.msg);
+                EventCenter.Instance.eventProtobuf(msg.mainKey, msg.msg);
             }
         }
     }
@@ -201,12 +201,12 @@ public class NetworkManager  :IFixedUpdatable
             }
         }
 
-        public void Send(int mainKey, int sonKey, Puerts.ArrayBuffer data)
+        public void Send(int mainKeyPuerts.ArrayBuffer data)
         {
-            Log.console.log("Send", mainKey, sonKey);
+            Log.console.log("Send", mainKey);
             var databyte = BufferUtil.ToBytes(data);
-            byte[] bytes = Encode(mainKey, sonKey, databyte);
-            Log.console.log("Send=", mainKey, sonKey, bytes.Length);
+            byte[] bytes = Encode(mainKey, databyte);
+            Log.console.log("Send=", mainKey, bytes.Length);
             try
             {
                 mySocket.BeginSend(bytes, 0, bytes.Length, SocketFlags.None, null, null);
@@ -244,11 +244,11 @@ public class NetworkManager  :IFixedUpdatable
                 Proto_Handshake_req msgReq = new Proto_Handshake_req();
                 msgReq.md5 = Instance.md5;
                 byte[] byteMsg = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(msgReq));
-                byte[] byteEnd = new byte[5 + byteMsg.Length];
+                byte[] byteEnd = new byte[3 + byteMsg.Length];
                 int msgLen = byteMsg.Length + 1;
                 int index = 0;
-                byteEnd[index++] = (byte) (msgLen >> 24 & 0xff);
-                byteEnd[index++] = (byte) (msgLen >> 16 & 0xff);
+                // byteEnd[index++] = (byte) (msgLen >> 24 & 0xff);
+                // byteEnd[index++] = (byte) (msgLen >> 16 & 0xff);
                 byteEnd[index++] = (byte) (msgLen >> 8 & 0xff);
                 byteEnd[index++] = (byte) (msgLen & 0xff);
                 byteEnd[index++] = 2 & 0xff;
@@ -263,7 +263,7 @@ public class NetworkManager  :IFixedUpdatable
             }
         }
 
-        private byte[] Encode(int mainKey, int sonKey, byte[] byteMsg)
+        private byte[] Encode(int mainKey byte[] byteMsg)
         {
             // byte[] byteMsg = Encoding.UTF8.GetBytes(data);
             if (byteMsg == null)
@@ -271,9 +271,9 @@ public class NetworkManager  :IFixedUpdatable
                 byteMsg = new byte[0];
             }
 
-            byte[] byteEnd = new byte[byteMsg.Length + 9];
+            byte[] byteEnd = new byte[byteMsg.Length + 7];
 
-            int len = byteMsg.Length + 5;
+            int len = byteMsg.Length + 3;
             int index = 0;
             byteEnd[index++] = (byte) (len >> 24 & 0xff);
             byteEnd[index++] = (byte) (len >> 16 & 0xff);
@@ -282,23 +282,9 @@ public class NetworkManager  :IFixedUpdatable
             byteEnd[index++] = 1;
             byteEnd[index++] = (byte) (mainKey >> 8 & 0xff);
             byteEnd[index++] = (byte) (mainKey & 0xff);
-            byteEnd[index++] = (byte) (sonKey >> 8 & 0xff);
-            byteEnd[index++] = (byte) (sonKey & 0xff);
 
             byteMsg.CopyTo(byteEnd, index);
             return byteEnd;
-            // List<byte> byteSource = new List<byte>();
-            // byteSource.Add((byte)(len >> 24 & 0xff));
-            // byteSource.Add((byte)(len >> 16 & 0xff));
-            // byteSource.Add((byte)(len >> 8 & 0xff));
-            // byteSource.Add((byte)(len & 0xff));
-            // byteSource.Add((byte)(1 & 0xff));
-            // byteSource.Add((byte)(mainKey >> 8 & 0xff));
-            // byteSource.Add((byte)(mainKey & 0xff));
-            // byteSource.Add((byte)(sonKey >> 8 & 0xff));
-            // byteSource.Add((byte)(sonKey & 0xff));
-            // byteSource.AddRange(byteMsg);
-            // return byteSource.ToArray();
         }
 
         private byte[] data = new byte[2 * 1024]; // socket接收字节流
@@ -306,7 +292,7 @@ public class NetworkManager  :IFixedUpdatable
         private int msgType = 0; // 消息类型
         private int byteIndex = 0; // 当前字节流写入到哪个位置了
         private byte[] headBytes = new byte[5]; // 头部字节流，固定为5个字节
-        private byte[] someBytes = new byte[4]; // 部分关键信息字节流，目前只有自定义消息用到，且固定为2个字节
+        private byte[] someBytes = new byte[2]; // 部分关键信息字节流，目前只有自定义消息用到，且固定为2个字节
         private byte[] msgBytes = new byte[0]; // 具体消息字节流
 
         private void Recive()
@@ -368,7 +354,7 @@ public class NetworkManager  :IFixedUpdatable
                 Log.console.log("msgType", msgType, allLen);
                 if (msgType == 1) // 自定义消息
                 {
-                    msgBytes = new byte[allLen - 5];
+                    msgBytes = new byte[allLen - 3];
                     byteIndex = 0;
                     ReadSome(readLen, length);
                 }
@@ -449,16 +435,11 @@ public class NetworkManager  :IFixedUpdatable
             if (msgType == 1) // 自定义消息
             {
                 int mainKey = (someBytes[0] << 8) + someBytes[1];
-                int sonKey = (someBytes[2] << 8) + someBytes[3];
                 SocketMsg msg = new SocketMsg();
                 msg.mainKey = mainKey;
-                msg.sonKey = sonKey;
-                // var blist = new Byte[msgBytes.Length - 4];
-                // Array.ConstrainedCopy(msgBytes, 0, blist, 0, blist.Length);
-                // msg.msg = blist;
                 msg.msg = msgBytes;
 
-                Log.console.log("HandleMsg2", mainKey, sonKey, headBytes.Length, someBytes.Length, msgBytes.Length, msg.msg);
+                Log.console.log("HandleMsg2", mainKey, headBytes.Length, someBytes.Length, msgBytes.Length, msg.msg);
                 pushMsg(msg);
             }
             else if (msgType == 2) // 握手回调
@@ -546,7 +527,7 @@ public class NetworkManager  :IFixedUpdatable
         {
             lock (Instance.lockObj)
             {
-                Log.console.log("pushMsg", msg.mainKey, msg.sonKey);
+                Log.console.log("pushMsg", msg.mainKey);
                 Instance.msgCache.Add(msg);
             }
         }
@@ -558,7 +539,6 @@ public class NetworkManager  :IFixedUpdatable
     private class SocketMsg
     {
         public int mainKey;
-        public int sonKey;
         public byte[] msg;
     }
 

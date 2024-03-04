@@ -1,1 +1,0 @@
-{"version":3,"file":"RpcEvent.js","sourceRoot":"","sources":["../../src/event/RpcEvent.ts"],"names":[],"mappings":";;;AAAA,IAAY,QAEX;AAFD,WAAY,QAAQ;IACnB,iCAAqB,CAAA;AACtB,CAAC,EAFW,QAAQ,GAAR,gBAAQ,KAAR,gBAAQ,QAEnB","sourcesContent":["export enum RpcEvent {\r\n\tSayHello = 'SayHello',\r\n}"]}

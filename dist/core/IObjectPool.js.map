@@ -1,1 +1,0 @@
-{"version":3,"file":"IObjectPool.js","sourceRoot":"","sources":["../../src/core/IObjectPool.ts"],"names":[],"mappings":"","sourcesContent":["/**\r\n * @Doc 对象池对象接口\r\n * @Author kL\r\n * @Date 2022/5/20 13:05\r\n */\r\nexport interface IObjectPool {\r\n    onRecycled():void;\r\n}"]}

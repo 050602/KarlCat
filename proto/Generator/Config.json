@@ -1,0 +1,27 @@
+{
+  "proto_file_url": "../proto/",
+  "export_prefix": "Pt",
+  "export_suffix": "",
+  "to_s_prefix": "S",
+  "to_c_prefix": "C",
+  "deep_parsing_doc": false,
+  "origin_json_url": "../OriginData/OriginData.json",
+  "exports": [
+    {
+      "id": 0,
+      "type": "json",
+      "export_url": "../OriginData/OriginData.json"
+    },
+    {
+      "id": 1,
+      "type": "ts",
+      "enabled": true,
+      "script_ext": "ts",
+      "include_packages": [
+        "lanlu"
+      ],
+      "export_script_url": "../../client-ts/scripts/proto",
+      "export_event_script_url": "../../client-ts/scripts/event"
+    }
+  ]
+}

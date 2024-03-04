@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package lanlu;
+
+// 登录
+message Pt10001 // IName: LoginReq
+{
+  string username = 1;        
+}
+
+// 登录
+message Pt10002  // IName: LoginResp
+{
+  uint32 code = 1;       // 结果码（LoginResultCode）
+}
+
