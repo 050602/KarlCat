@@ -31,11 +31,17 @@ Used kL GameConfig Tools--but not demo in karlCat
 # Update
 2024/3/4
 this update is very more
+
 1.add protobuf SnowDrifting tool
+
 2.change double proto key to  one key
+
 3.migrate ts server config to json server config
+
 4.add some example, database and model,modelLogic
+
 5.add js HotReload , use: HotReload.loadHandler
+
 6.migrate session bind in gate to login server
 
 # Mydog Home
