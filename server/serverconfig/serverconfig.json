@@ -2,7 +2,7 @@
     "zoneid" : 10,
     "mongodb_connectstring": "mongodb://127.0.0.1:27017/MTJ3DB",
     "masterConfig" : {"serverName": "master-1", "host": "127.0.0.1", "port": 42368},
-    "logbackupinfo" : {"destIPInfo": "log@10.10.30.109::data", "sourceDir": "./logs/bg", "passwordFilePath": "/data/rsync.password" },
+    "logbackupinfo" : {"destIPInfo": "log@127.0.0.1::data", "sourceDir": "./logs/bg", "passwordFilePath": "/data/rsync.password" },
     "backgroundPort": 4009,
     "serverinfos" : [ 
         {            

@@ -6,5 +6,4 @@ export class SocketState extends BaseServerLogic {
         return this.getInstance();
     }
     public openClientSocket = isDebug ? true : false;
-    // public openClientSocket = false;
 }
