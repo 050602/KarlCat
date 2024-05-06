@@ -15,12 +15,14 @@ export class BaseServerLogic extends Sigleton {
     }
 
     public bindCmd(cmd: number, func: Function) {
+        TSEventCenter.Instance.bindCMD(cmd, this, func);
         this.registerCmds.push(cmd);
     }
 
 
     public bindRpcEvents(name: number, func: Function, flagAwait = false) {
         if (!flagAwait) {
+            TSEventCenter.Instance.bind(name, this, func);
             this.rpcEvents.push(name);
         } else {
             this.bindRpcAwaitEvents(name, func);
@@ -28,6 +30,7 @@ export class BaseServerLogic extends Sigleton {
     }
 
     public bindRpcAwaitEvents(name: number, func: Function) {
+        TSEventCenter.Instance.bindAwait(name, this, func)
         this.rpcAwaitEvents.push(name);
     }
 
