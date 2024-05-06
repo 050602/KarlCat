@@ -12,6 +12,7 @@ export class BaseServerLogic extends Sigleton {
         this.registerCmds = [];
         this.rpcEvents = [];
         this.rpcAwaitEvents = [];
+        this.timers = [];
     }
 
     public bindCmd(cmd: number, func: Function) {
