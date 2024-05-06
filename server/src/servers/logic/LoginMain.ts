@@ -23,7 +23,7 @@ export default class LoginMain extends BaseServerLogic {
     }
 
 
-    //以下代码是示例接收后端服的代码 lanlu.IPt101_1_tos会报错，因为我生成的proto文件没有101这个协议
+    //以下代码是示例接收后端服的代码
     public async loginReq10001(msg: lanlu.IPt10001, session: Session, next: Function) {
         console.log("login succc ", msg)
 

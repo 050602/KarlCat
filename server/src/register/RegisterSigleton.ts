@@ -1,15 +1,6 @@
 import { app } from "../app";
 import { Sigleton } from "../core/Sigleton";
 import { ServerType } from "./route";
-// import { BGUserMgrMain } from "../servers/Background/BGUserMgrMain";
-// import { BackgroundMain } from "../servers/Background/BackgroundMain";
-// import { BgActivity } from "../servers/Background/BgActivity";
-// import { BgCharge } from "../servers/Background/BgCharge";
-// import { BgHotReload } from "../servers/Background/BgHotReload";
-// import { BgLogMain } from "../servers/Background/BgLogMain";
-// import { BgMail } from "../servers/Background/BgMail";
-// import { RunNoticeMain } from "../servers/Background/RunNoticeMain";
-// import { ServerDataMain } from "../servers/Background/ServerDataMain";
 import { HotReload } from "../utils/HotReload";
 import GateMain from "../servers/gate/GateMain";
 import LoginMain from "../servers/logic/LoginMain";

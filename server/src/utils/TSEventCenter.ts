@@ -60,7 +60,7 @@ export class TSEventCenter {
     public async eventCMDAsync(roleUid: number, mainKey: number, sonKey: number, ...data: any[]): Promise<any> {
         let realKey = mainKey * 1000 + sonKey;
 
-        let time = DateUtils.timestamp();
+        // let time = DateUtils.timestamp();
         let cmd = this.cmdMap.get(realKey);
         if (!cmd) {
             //没有注册CMD
@@ -70,7 +70,7 @@ export class TSEventCenter {
         if (roleUid > 0) {
             //战斗服允许不等待协议
             //mainKey + sonKey == 303 302_1 有加速检测，如果之前的协议阻塞了，会导致玩家连续发送302_1而踢下线
-            if (app.serverType == ServerType.fight || mainKey + sonKey == 303) {
+            if (app.serverType == ServerType.fight) {
                 cmd.func.apply(cmd.thisobj, data);
             } else {
                 //其他服务器必须进队列里等待

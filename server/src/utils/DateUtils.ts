@@ -14,10 +14,8 @@ export interface FormatTimeDate {
 * @author An
 */
 export class DateUtils {
-    // 删档后改为 2023年1月1日 0点0分的时间戳，需要前后端配合
     public static cost20230101s: number = 1672502400;
     public static cost20230101ms: number = DateUtils.cost20230101s * 1000;
-    //时间戳日期为周几，被安总坑过？懂，周日=0，需为上面日期的周几+1，
     public static initPeriod: number = 0;
 
     public static secOneMinute = 60; //一分的秒数
@@ -767,18 +765,4 @@ export class DateUtils {
     }
 
 
-    /**
-    * 判断本日是否有开启该活动
-    * @param list 开启日
-    * 经验证会导致宝箱奖励有问题，暂时注释掉了，以后找机会起复
-    */
-    public static judgeTodayCanJoin(list: number[]): boolean {
-        let nowTime = DateUtils.timestamp();//现在时间
-        let today = DateUtils.formatTime3(nowTime);//今天是多少号
-        let week = DateUtils.getWeekFromPeriod(today);
-        if (list.indexOf(week) < 0) {
-            return false
-        }
-        return true
-    }
 }
