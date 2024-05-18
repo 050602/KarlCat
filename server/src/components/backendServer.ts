@@ -53,7 +53,7 @@ export class BackendServer {
         session.setAll(BSON.deserialize(sessionBuf) as sessionCopyJson);
         let cmd = msg.readUInt16BE(3 + sessionLen);
         //此处返回的是Protobuf的结构体，而不是Buffer
-        let data = this.app.msgDecode(cmd, msg.subarray(3 + sessionLen));
+        let data = this.app.msgDecode(cmd, msg.subarray(5 + sessionLen));
         if (!data) {
             console.error("异常的调用协议，可能是在扫描协议", session.uid, session.getIp(), session.getPort());
             return;
