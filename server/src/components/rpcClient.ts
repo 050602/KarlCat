@@ -205,6 +205,12 @@ export class RpcClientSocket {
             else if (type === define.Rpc_Msg.heartbeat) {
                 this.heartbeatResponse();
             }
+            else if (type === define.Rpc_Msg.forward_cross2RealCross_inSubZone) {
+                this.app.backendServer.onForwardCross2RealCross_inSubZone(this.serverName, data);
+            }
+            else if (type === define.Rpc_Msg.forward_realCross2cross_inCrossZone) {
+                this.app.backendServer.onForwardRealCross2cross_inCrossZone(this.serverName, data);
+            }
         } catch (e: any) {
             this.app.logger(loggerType.msg, loggerLevel.error, e.stack);
         }

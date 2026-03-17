@@ -242,7 +242,7 @@ function getListInfo(app: Application) {
 }
 
 function formatTime(time: number) {
-    time = Math.floor((DateUtils.timestamp() - time) * 0.001);
+    time = Math.floor((DateUtils.msSysTick - time) * 0.001);
     var days = Math.floor(time / (24 * 3600));
     time = time % (24 * 3600);
     var hours = Math.floor(time / 3600);

@@ -5,17 +5,23 @@ import { DataBase } from "./database/DataBase";
 import { connector, createApp } from "./mydog";
 import { RegisterSigleton } from "./register/RegisterSigleton";
 import { ServerType } from "./register/route";
+import { DatabaseEvent } from "./event/DatabaseEvent";
 // import { ServerDataMain } from "./servers/Background/ServerDataMain";
 import { SocketState } from "./const/SocketState";
 import { some_config } from "./util/define";
 import { I_connectorConfig, I_rpcConfig } from "./util/interfaceDefine";
 import { CommonUtils } from "./utils/CommonUtils";
 import { DateUtils } from "./utils/DateUtils";
+import { TSEventCenter } from "./utils/TSEventCenter";
 import GateMain from "./servers/gate/GateMain";
+import { CrossRpcClientSocket, removeCrossRPCSocket } from "./components/crossRpcClient";
 
 
 
 export let app = createApp();
+const DB_READY_CHECK_INTERVAL_MS = 500;
+const DB_READY_CHECK_TIMEOUT_MS = 30000;
+const SHUTDOWN_FORCE_EXIT_MS = 5000;
 
 export const isDebug = true;
 //当然，因为之后会切换后端框架，这个问题不大
@@ -25,8 +31,9 @@ export let BigChannelName: string = "aofei";//区ID
 export let language: "cn" | "en" = "cn";//当前执行语言环境类型，之后可能读后台吧？
 
 
+let shutdowning = false;
 const handleExit = (code: number, error: any) => {
-    console.error(DateUtils.formatFullTime2(DateUtils.timestamp()), "handleExit", code, error);
+    void gracefulShutdown(code, error);
 };
 
 export let allTables: any[] = [];
@@ -100,6 +107,9 @@ app.configure(ServerType.gate, () => {
     app.route(ServerType.cross, (session: Session) => {
         return ServerType.cross + "-1";
     });
+    app.route(ServerType.realCross, (session: Session) => {
+        return ServerType.cross + "-1";
+    });
     app.route(ServerType.social, (session: Session) => {
         return ServerType.social + "-1";
     });
@@ -126,7 +136,10 @@ async function init() {
     app.start();
 
     if (app.serverInfo.serverType != ServerType.database) {
-        await CommonUtils.sleep(8000);  // todo2
+        let dbReady = await waitForDatabaseRpcReady();
+        if (!dbReady) {
+            console.error("database rpc not ready before initMain", app.serverName, DB_READY_CHECK_TIMEOUT_MS);
+        }
     }
 
     RegisterSigleton.initMain();
@@ -153,9 +166,110 @@ async function init() {
         case ServerType.logSave:
             //初始化在线人数
             break;
+        case ServerType.cross:
+            initCrossProxyToRealCross();
+            break;
+        case ServerType.realCross:
+            break;
 
     }
 
+}
+
+function initCrossProxyToRealCross() {
+    if (app.serverType !== ServerType.cross) {
+        return;
+    }
+    let cfg = (app.zoneConfig as any).realCrossConfig;
+    if (!cfg) {
+        return;
+    }
+    let host = cfg.host;
+    let port = Number(cfg.port);
+    let zoneId = Number(cfg.zoneId);
+    if (!host || !port || !zoneId) {
+        console.warn("invalid realCrossConfig, skip cross->realCross connect", app.serverName, cfg);
+        return;
+    }
+
+    let targetName = "CrossNet-" + zoneId;
+    app.set("realCrossSocketName", targetName);
+    app.set("enableCrossCmdForward", !!cfg.proxyClientCmd);
+
+    removeCrossRPCSocket(targetName);
+    new CrossRpcClientSocket(app, {
+        serverId: zoneId,
+        serverName: targetName,
+        host: host,
+        port: port,
+        frontend: false,
+        clientPort: 0,
+        serverType: ServerType.realCross,
+    } as any);
+}
+
+async function waitForDatabaseRpcReady(): Promise<boolean> {
+    if (app.serverInfo.serverType == ServerType.master) {
+        return true;
+    }
+    let dbInfos = app.serversConfig[ServerType.database];
+    if (!dbInfos || dbInfos.length == 0) {
+        console.warn("database server config not found, skip readiness check", app.serverName);
+        return true;
+    }
+    let dbServerName = dbInfos[0].serverName;
+    let timeoutAt = Date.now() + DB_READY_CHECK_TIMEOUT_MS;
+    while (Date.now() < timeoutAt) {
+        if (!app.rpcPool.getSocket(dbServerName)) {
+            await CommonUtils.sleep(DB_READY_CHECK_INTERVAL_MS);
+            continue;
+        }
+        if (typeof app.rpcDB != "function") {
+            return true;
+        }
+        try {
+            let dbReady = await app.rpcDB(dbServerName, DatabaseEvent.OnHealthCheck);
+            if (dbReady === true) {
+                return true;
+            }
+        } catch (err) {
+            // keep retrying until timeout
+        }
+        await CommonUtils.sleep(DB_READY_CHECK_INTERVAL_MS);
+    }
+    return false;
+}
+
+async function gracefulShutdown(code: number, error: any) {
+    if (shutdowning) {
+        return;
+    }
+    shutdowning = true;
+    console.error(DateUtils.formatFullTime2(DateUtils.msSysTick), "handleExit", code, error);
+
+    let forceTimer = setTimeout(() => {
+        console.error("gracefulShutdown timeout, force exit", app.serverName, code);
+        process.exit(code);
+    }, SHUTDOWN_FORCE_EXIT_MS);
+
+    try {
+        TSEventCenter.Instance.clearAllCMDLocks();
+        if (app.frontend) {
+            app.killAllClients();
+        }
+        app.rpcPool.closeAllSockets();
+
+        let dbInst = app.InstanceMap.get("DataBase") as DataBase;
+        if (dbInst?.db?.disconnect) {
+            await dbInst.db.disconnect();
+        }
+    } catch (err) {
+        console.error("gracefulShutdown error", err);
+    } finally {
+        clearTimeout(forceTimer);
+        await CommonUtils.sleep(100);
+        process.exit(code);
+    }
 }
 
 
@@ -166,13 +280,13 @@ async function init() {
 // app.ts为程序入口文件
 
 process.on("exit", function (code) {
-    console.error(DateUtils.formatFullTime2(DateUtils.timestamp()), "exit code:", code);
+    console.error(DateUtils.formatFullTime2(DateUtils.msSysTick), "exit code:", code);
 });
 process.on("uncaughtException", function (err: Error, origin: Promise<any>) {
-    console.error(DateUtils.formatFullTime2(DateUtils.timestamp()), "uncaughtException", err?.stack);
+    console.error(DateUtils.formatFullTime2(DateUtils.msSysTick), "uncaughtException", err?.stack);
 });
 process.on("unhandledRejection", function (err: Error, origin: Promise<any>) {
-    console.error(DateUtils.formatFullTime2(DateUtils.timestamp()), "unhandledRejection", err?.stack);
+    console.error(DateUtils.formatFullTime2(DateUtils.msSysTick), "unhandledRejection", err?.stack);
 });
 
 // 监听各种退出事件

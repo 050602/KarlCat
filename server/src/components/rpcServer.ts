@@ -5,6 +5,8 @@ import * as define from "../util/define";
 import { loggerLevel, loggerType, ServerInfo, SocketProxy } from "../util/interfaceDefine";
 import { TSEventCenter } from "../utils/TSEventCenter";
 import * as rpcService from "./rpcService";
+import { ServerType } from "../register/route";
+import { startCross } from "./crossRpcServer";
 const BSON = require('bson');
 const Long = BSON.Long;
 
@@ -26,7 +28,11 @@ export function start(app: Application, cb: () => void) {
     }
 
     function newClientCb(socket: SocketProxy) {
-        new RpcServerSocket(app, socket);
+        if (app.serverType == ServerType.realCross) {
+            startCross(app, socket);
+        } else {
+            new RpcServerSocket(app, socket);
+        }
     }
 
     let tokenConfig = app.someconfig.recognizeToken || {};

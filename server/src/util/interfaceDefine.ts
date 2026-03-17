@@ -323,6 +323,33 @@ export interface LogBackupInfo {
     readonly passwordFilePath: number;
 }
 
+export interface RealCrossConfig {
+    /**
+     * RealCross 服务器标识（默认 realCross-1）
+     */
+    readonly serverName?: string;
+    /**
+     * RealCross 逻辑大区ID（用于 CrossNet 命名）
+     */
+    readonly zoneId: number;
+    /**
+     * RealCross 内网地址
+     */
+    readonly host: string;
+    /**
+     * RealCross RPC 端口
+     */
+    readonly port: number;
+    /**
+     * 服务器ID（默认1）
+     */
+    readonly serverId?: number;
+    /**
+     * cross 服是否将跨服协议直接代理到 realCross
+     */
+    readonly proxyClientCmd?: boolean;
+}
+
 /**
  * 有多个大区再做调整
  */
@@ -346,6 +373,9 @@ export interface ServerConfig {
 
     //接收后台数据的监听端口
     readonly backgroundPort: number;
+
+    // 可选：跨服中心配置
+    readonly realCrossConfig?: RealCrossConfig;
 
 }
 

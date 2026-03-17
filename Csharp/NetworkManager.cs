@@ -201,7 +201,7 @@ public class NetworkManager  :IFixedUpdatable
             }
         }
 
-        public void Send(int mainKeyPuerts.ArrayBuffer data)
+        public void Send(int mainKey, Puerts.ArrayBuffer data)
         {
             Log.console.log("Send", mainKey);
             var databyte = BufferUtil.ToBytes(data);
@@ -263,7 +263,7 @@ public class NetworkManager  :IFixedUpdatable
             }
         }
 
-        private byte[] Encode(int mainKey byte[] byteMsg)
+        private byte[] Encode(int mainKey, byte[] byteMsg)
         {
             // byte[] byteMsg = Encoding.UTF8.GetBytes(data);
             if (byteMsg == null)
@@ -470,7 +470,9 @@ public class NetworkManager  :IFixedUpdatable
                 heartbeatTimeoutTimer = new System.Timers.Timer();
                 heartbeatTimeoutTimer.Elapsed += HeartbeatTimeout;
                 heartbeatTimeoutTimer.AutoReset = false;
-                heartbeatTimeoutTimer.Interval = 4 * 1000;
+                // 超时时间至少4秒，并随服务端心跳配置动态调整
+                double heartbeatTimeoutSec = Math.Max(4.0, msg.heartbeat * 2.0);
+                heartbeatTimeoutTimer.Interval = heartbeatTimeoutSec * 1000;
             }
 
             Instance.md5 = msg.md5;

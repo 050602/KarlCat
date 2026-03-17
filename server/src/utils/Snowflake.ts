@@ -41,7 +41,7 @@ export const randomLenNum = ():BigInt => {
         return BigInt(timestamp);
     };
     Snowflake.prototype.timeGen = function() {
-        return BigInt(DateUtils.timestamp());
+        return BigInt(DateUtils.msSysTick);
     };
     Snowflake.prototype.nextId = function() {
         var timestamp = this.timeGen();

@@ -1,4 +1,5 @@
 import { Sigleton } from "../core/Sigleton";
+import { errLog, logServerReal, warningLog } from "../LogTS";
 import { DateUtils } from "./DateUtils";
 
 /**
@@ -25,6 +26,11 @@ export class TickTask extends Sigleton {
      */
     public initInstance() {
         super.initInstance();
+        //设置时间为从服务器获取的时间
+        // this._time = setInterval(() => {
+        //     TickTask.Instance.update();
+        // }, 333);
+        // this.isRuning = true;
     };
 
     public pauseSchedule() {
@@ -46,6 +52,42 @@ export class TickTask extends Sigleton {
     }
 
     /**
+     * 安全地增加定时任务到队列
+     * 如果发现相同上下文和callback ，则对Timestamp处理毫秒增值，并返回新的时间戳
+     * 主要避免可能会复用该任务的情景，如公会，可能重复的时间戳导致被错误的移除了任务
+     * @param thisObj 
+     * @param callback 
+     * @param timestamp 
+     * @param data 
+     * @returns 
+     */
+    public safePushTask(thisObj: any, callback: Function, timestamp: number, ...data: any[]) {
+        let arr: Array<any> = this.TaskDic.get(timestamp);
+        let needNewTimestamp = false;
+        if (arr) {
+            for (let i = 0; i < arr.length; i++) {
+                let obj = arr[i][0];
+                let func2 = arr[i][1];
+
+                if (thisObj == obj && func2 == callback) {
+                    needNewTimestamp = true;
+                    break;
+                }
+            }
+        }
+
+        if (needNewTimestamp) {
+            timestamp++;
+            let newTimestamp = this.safePushTask(thisObj, callback, timestamp, ...data);
+            return newTimestamp;
+        }
+
+        this.pushTask(thisObj, callback, timestamp, ...data);
+
+        return timestamp;
+    }
+
+    /**
      * 增加新的定时任务到队列
      * @param timestamp 需要执行的具体时间戳，单位毫秒
      * @param callback 回调执行的方法
@@ -54,13 +96,14 @@ export class TickTask extends Sigleton {
     public pushTask(thisObj: any, callback: Function, timestamp: number, ...data: any[]) {
         if (thisObj == null || callback == null) {
             // gzalog("定时执行的方法不能为空");
-            console.error("定时执行的对象/方法不能为空");
+            errLog("定时执行的对象/方法不能为空");
             return false;
         }
 
         //任务已过期
-        if (isNaN(timestamp) || timestamp < DateUtils.timestamp()) {
-            console.error("时间戳非法/该任务已过期", timestamp, DateUtils.timestamp());
+        if (isNaN(timestamp) || timestamp < DateUtils.msSysTick) {
+            warningLog("时间戳非法/该任务已过期", timestamp, DateUtils.msSysTick);
+            // logServerReal("时间戳非法/该任务已过期", timestamp, DateUtils.msSysTick);
 
             // let date = new Date();
             // date.setTime(timestamp);
@@ -72,7 +115,7 @@ export class TickTask extends Sigleton {
 
         if (typeof (timestamp) != "number") {
             timestamp = parseInt(timestamp);
-            console.error("时间戳是一个字符串，请注意", timestamp);
+            errLog("时间戳是一个字符串，请注意", timestamp);
         }
 
         let newarr = [];
@@ -80,16 +123,20 @@ export class TickTask extends Sigleton {
         newarr.push(callback);
         newarr.push(data);
 
-        console.error("pushTask", newarr, timestamp, DateUtils.formatFullTime4(timestamp));
+        // logServer("pushTask", thisObj?.name, callback?.name, data, timestamp, DateUtils.formatFullTime4(timestamp), getTrack());
+        try {
+            // console.log("pushTask", thisObj.clsName, thisObj.name, callback?.name, data, timestamp, DateUtils.formatFullTime4(timestamp), getTrack());
+            // logServer("pushTask", thisObj.clsName ? thisObj.clsName : "", callback?.name, timestamp, DateUtils.formatFullTime4(timestamp), getTrack());
+        } catch (error) {
+            console.error("pushTask error", error)
+        }
 
         //从字典获取该时间戳是否存在任务队列
         let arr = this.TaskDic.get(timestamp);
         if (!arr) {
             arr = [];
             //没有的话，set一个，把时间戳放到 时间戳队列里
-            this.queueArr.push(timestamp);
-            //执行时间戳排序
-            this.arrDichotomy(this.queueArr);
+            this.insertQueueTimestamp(timestamp);
             //根据时间戳存放队列任务数组
             this.TaskDic.set(timestamp, arr);
         }
@@ -123,7 +170,8 @@ export class TickTask extends Sigleton {
                 // let cont2 = dic[i][2];
 
                 if (thisObj == obj && func2 == func) {
-                    console.error("removeTask", timestamp, arr[i]);
+                    console.log("removeTask", timestamp, arr[i][0], arr[i][2]);
+                    // logServer("removeTask", timestamp, thisObj.clsName ? thisObj.clsName : "", func2?.name);
                     arr.splice(i, 1);
                     i--;
                 }
@@ -170,7 +218,7 @@ export class TickTask extends Sigleton {
         // }
 
         if (this.queueArr.length > 0) {
-            let curServerTime = DateUtils.timestamp();
+            let curServerTime = DateUtils.msSysTick;
             this.checkTask(this.queueArr[0], curServerTime);
         }
     }
@@ -186,11 +234,13 @@ export class TickTask extends Sigleton {
             if (curServerTime > taskTime) {
                 let arr = this.TaskDic.get(taskTime);
                 if (arr) {
-                    console.error("doTask", curServerTime, taskTime, this.queueArr[0]);
+                    // logServer("doTask", curServerTime, taskTime, this.queueArr[0]);
                     this.queueArr.splice(0, 1);
-                    for (let key in arr) {
-                        let element = arr[key];
-                        console.error("doTask Func", element);
+                    let bakArr = arr.concat();
+                    for (let key in bakArr) {
+                        let element = bakArr[key];
+                        // console.log("doTask Func", element[0], element[2]);
+                        // logServer("doTask Func", element[1].clsName ? element[1]?.clsName : "nil", element[1]?.name);
                         let thisObj: Function = element[0];
                         let func: Function = element[1];
                         let data = element[2];
@@ -203,14 +253,15 @@ export class TickTask extends Sigleton {
                                     func.apply(thisObj);
                                 }
                             } catch (error) {
-                                console.error("致命错误,TickTask执行的方法里存在错误", taskTime, "\n", error);
+                                errLog("致命错误,TickTask执行的方法里存在错误", taskTime, "\n", error);
+                                // logServer("致命错误,TickTask执行的方法里存在错误", taskTime, "\n", error);
                             }
                         }
                     }
                     arr = null;
                 }
                 this.TaskDic.delete(taskTime);
-                console.error("checkTaskRemoveTask", curServerTime, taskTime);
+                // logServer("checkTaskRemoveTask", curServerTime, taskTime);
                 if (this.queueArr.length > 0) {
                     this.checkTask(this.queueArr[0], curServerTime);
                 }
@@ -248,5 +299,19 @@ export class TickTask extends Sigleton {
             }
         }
         return array;
+    }
+
+    private insertQueueTimestamp(timestamp: number) {
+        let left = 0;
+        let right = this.queueArr.length;
+        while (left < right) {
+            let middle = (left + right) >> 1;
+            if (this.queueArr[middle] <= timestamp) {
+                left = middle + 1;
+            } else {
+                right = middle;
+            }
+        }
+        this.queueArr.splice(left, 0, timestamp);
     }
 }

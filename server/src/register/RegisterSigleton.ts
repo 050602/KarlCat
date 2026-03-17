@@ -25,6 +25,8 @@ export class RegisterSigleton {
                 break;
             case ServerType.cross:
                 break;
+            case ServerType.realCross:
+                break;
             case ServerType.background:
                 break;
             case ServerType.gate:

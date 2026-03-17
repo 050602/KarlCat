@@ -11,6 +11,7 @@ import * as rpcServer from "../components/rpcServer";
 import * as rpcService from "../components/rpcService";
 import { ServerInfo } from "./interfaceDefine";
 import { RouterServer } from "../components/routerServer";
+import { ServerType } from "../register/route";
 const BSON = require('bson');
 const Long = BSON.Long;
 
@@ -162,6 +163,26 @@ let processArgs = function (app: Application, args: { main: string, serverName: 
     let startAlone = !!args.serverName;
     app.serverName = args.serverName || app.masterConfig.serverName;
     app.isDaemon = !!args.isDaemon;
+
+    // 兼容旧配置：未在 serverinfos 显式声明 realCross-1 时，允许通过 realCrossConfig 注入
+    if (app.serverName === "realCross-1") {
+        let hasRealCross = (app.serversConfig[ServerType.realCross] || []).length > 0;
+        let cfg = (app.zoneConfig as any).realCrossConfig;
+        if (!hasRealCross && cfg && cfg.host && cfg.port) {
+            let realCrossServer: ServerInfo = {
+                serverId: Number(cfg.serverId) || 1,
+                serverName: cfg.serverName || "realCross-1",
+                host: cfg.host,
+                port: Number(cfg.port),
+                frontend: false,
+                clientPort: 0,
+                serverType: ServerType.realCross,
+                toGate: "",
+            };
+            app.serversConfig[ServerType.realCross] = [realCrossServer];
+        }
+    }
+
     if (app.serverName === app.masterConfig.serverName) {
         app.serverInfo = BSON.deserialize(BSON.serialize(app.masterConfig)) as ServerInfo;
         (app.serverInfo as any).serverType = "master";

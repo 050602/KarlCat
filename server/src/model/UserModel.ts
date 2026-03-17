@@ -1,97 +1,79 @@
-import LRUCache from "lru-cache";
 import { app } from "../app";
 import { UserData } from "../database/UserTable";
-import { UserModelLogic } from "../modelLogic/UserModelLogic";
 import { ServerType } from "../register/route";
+import { TTLCache } from "../utils/TTLCache";
 import { BaseModel } from "./BaseModel";
 
-
-//请不要在Model里写任何逻辑
+// UserModel：主键是 lastMd5（字符串），使用 BaseModel 的缓存功能
 export class UserModel extends BaseModel {
-    public static SigletonInsName = "UserModel";
     public static get Instance(): UserModel {
         return this.getInstance();
     }
 
+    // 登录专用缓存：用于 MD5 key 的短时缓存
+    public userDataLoginCache: TTLCache<string, UserData>;
+
+    // 启用缓存
+    protected enableCache(): boolean {
+        return true;
+    }
+
     public initInstance() {
-        //新增的缓存，需要在RoleRpcMain 的 updateOnlineCache 方法处理一次get 避免因为在线很久，把缓存清除了
-        let options = {
-            // max: 3333,//最大缓存条数,理论上按同时在线玩家的2倍处理即可？理论上单服3000人，那就6000
-            ttl: 1000 * 60 * 5,//存活多久 毫秒 如果启用了ttl ，Has判断过期Item时，总是会返回false
-            ttlAutopurge: true,
-            //在从缓存中移除之前返回过期的项目? LRU
-            allowStale: false,//如果设置了ttl,当调用get时，是否返回过期的item
-            updateAgeOnGet: true,//如果设置了ttl,当调用get时，是否更新过期时间戳
-            updateAgeOnHas: false,//如果设置了ttl,当调用has时，是否更新过期时间戳
-            ignoreFetchAbort: true,//忽略淘汰时的异常中止
-            //如果缓存中没有指定值，调用cache.fetch时，会调用以下方法，并把方法的返回值，返回,,,就是说，如果缓存中存在，是不会调用该方法的; ps:该方法会自动把返回值设置进缓存内
-            fetchMethod: UserModelLogic.Instance.fetchData,//该方法是异步的才对，理论上传进来的方法需要是async
-            fetchContext: UserModelLogic.Instance,
-        }
+        super.initInstance(); // 初始化 modelCache (roleUid -> UserData)
 
-        this.userDataCache = new LRUCache(options);
-
-        //在gate时，缩短缓存时间
+        // Gate 服务器需要额外的登录缓存（MD5 -> UserData）
         if (app.serverType == ServerType.gate) {
-            let options2 = {
-                // max: 8000,//最大缓存条数,理论上按同时在线玩家的2倍处理即可？理论上单服3000人，那就6000
-                ttl: 1000 * 10,//存活多久 毫秒 如果启用了ttl ，Has判断过期Item时，总是会返回false
-                ttlAutopurge: true,
-                //在从缓存中移除之前返回过期的项目? LRU
-                allowStale: false,//如果设置了ttl,当调用get时，是否返回过期的item
-                updateAgeOnGet: true,//如果设置了ttl,当调用get时，是否更新过期时间戳
-                updateAgeOnHas: false,//如果设置了ttl,当调用has时，是否更新过期时间戳
-                ignoreFetchAbort: true,//忽略淘汰时的异常中止
-                //如果缓存中没有指定值，调用cache.fetch时，会调用以下方法，并把方法的返回值，返回,,,就是说，如果缓存中存在，是不会调用该方法的; ps:该方法会自动把返回值设置进缓存内
-                fetchMethod: UserModelLogic.Instance.fetchDataString,//该方法是异步的才对，理论上传进来的方法需要是async
-                fetchContext: UserModelLogic.Instance,
-            }
-            this.userDataLoginCache = new LRUCache(options2)
+            this.userDataLoginCache = new TTLCache({
+                ttl: 1000 * 10, // 10秒短期缓存
+                interval: 1000 * 60,
+                updateAgeOnGet: true,
+                updateAgeOnHas: false,
+                fetchMethod: this.fetchDataByMd5,
+                fetchContext: this,
+            });
         }
-    };
-
-    //禁止在逻辑类直接操作该变量 
-    public userDataCache: LRUCache<number, UserData>;
-    public userDataLoginCache: LRUCache<string, UserData>;
-
-    public destoryInstance() {
-    };
-
-
-    public async insert(data: UserData): Promise<UserData> {
-        return super.insertOne(data);
     }
 
-    public async find(username: string): Promise<UserData> {
-        return super.findOne(username);
+    // 覆盖基类的 TTL 配置（5分钟）
+    protected getLRU_ttl(): number {
+        return 60 * 5;
     }
 
+    // 按 MD5 主键查找用户
+    public async findByMD5(lastMd5: string): Promise<UserData> {
+        return this.findOne({ lastMd5: lastMd5 });
+    }
 
+    // 按 roleUid 查找用户（使用缓存）
     public async findByRoleUid(roleUid: number): Promise<UserData> {
-        return super.findOneByObject({ roleUid: roleUid });
+        return this.modelCache.fetch(roleUid);
     }
 
-    /**
-     * 该方法理论上跟findOne一毛一样，主要用来区分findOne ,让 findOne可以用单一key做Map缓存
-     * 此处不能直接调用findOne  因为在子类时，会调用到子类的findOne 该方法无法保证取到最新的数据，因为数据需要落地
-     * @param cond
-     * @returns 
-     */
-    public async findByObject(cond: any): Promise<UserData> {
-        return super.findOneByObject(cond);
+    // 插入新用户
+    public async insert(data: UserData): Promise<UserData> {
+        return this.insertOne(data);
     }
 
-
-    public async findAllByAny(cond: any): Promise<UserData[]> {
-        return super.findAll(cond);
-    }
-
-    public async deleteOne(username: string): Promise<boolean> {
-        return super.deleteOne(username) as any;
-    }
-
+    // 更新用户数据
     public async update(userName: string, data: any): Promise<boolean> {
-        return super.updateOne(userName, data);
+        return this.updateOne({ userName }, data);
     }
 
+    // 统计指定条件的用户数
+    public async count(type: string, val: string): Promise<number> {
+        let cond: any = null;
+        switch (type) {
+            case 'ip': cond = { lastLoginIP: val }; break;
+            case 'dev': cond = { mobileUid: val }; break;
+        }
+        if (!cond) {
+            return 0;
+        }
+        return this.countDocuments(cond);
+    }
+
+    // MD5 缓存的 fetch 方法
+    private async fetchDataByMd5(key: string, context: UserModel): Promise<UserData> {
+        return context.findOne({ lastMd5: key });
+    }
 }

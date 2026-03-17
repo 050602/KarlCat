@@ -4,6 +4,8 @@ import { ServerType } from "../register/route";
 import { CoroutineLock } from "./CoroutineLock";
 
 export class TSEventCenter {
+    private static readonly CMD_LOCK_IDLE_MS = 5 * 60 * 1000;
+    private static readonly CMD_LOCK_CLEAN_INTERVAL_MS = 60 * 1000;
     private static _inst: TSEventCenter;
     static get Instance() {
         if (TSEventCenter._inst == null) {
@@ -13,11 +15,18 @@ export class TSEventCenter {
         return TSEventCenter._inst;
     }
     initInstance() {
+        if (!this.lockCleanTimer) {
+            this.lockCleanTimer = setInterval(() => {
+                this.cleanIdleCMDLocks();
+            }, TSEventCenter.CMD_LOCK_CLEAN_INTERVAL_MS);
+        }
     }
 
     private cmdMap: Map<number, { thisobj: any, func: Function }> = new Map();
     // private cmdCache: Map<number, { thisobj: any, func: Function }[]> = new Map();
     private lockMap: Map<number, CoroutineLock> = new Map();
+    private lockUseTimeMap: Map<number, number> = new Map();
+    private lockCleanTimer: NodeJS.Timeout;
     private rpcMap: Map<number, any[]> = new Map();
     private dbMap: Map<string, any[]> = new Map();
     private awaitMap: Map<number, any[]> = new Map();
@@ -46,6 +55,7 @@ export class TSEventCenter {
             lock = new CoroutineLock();
             this.lockMap.set(roleUid, lock);
         }
+        this.lockUseTimeMap.set(roleUid, Date.now());
         return lock;
     }
 
@@ -54,13 +64,21 @@ export class TSEventCenter {
         if (lock) {
             lock.clear();
             this.lockMap.delete(roleUid);
+            this.lockUseTimeMap.delete(roleUid);
         }
     }
 
-    public async eventCMDAsync(roleUid: number, mainKey: number, sonKey: number, ...data: any[]): Promise<any> {
-        let realKey = mainKey * 1000 + sonKey;
+    public clearAllCMDLocks() {
+        for (let lock of this.lockMap.values()) {
+            lock.clear();
+        }
+        this.lockMap.clear();
+        this.lockUseTimeMap.clear();
+    }
 
-        // let time = DateUtils.timestamp();
+    public async eventCMDAsync(roleUid: number, realKey: number, ...data: any[]): Promise<any> {
+
+        // let time = DateUtils.msSysTick;
         let cmd = this.cmdMap.get(realKey);
         if (!cmd) {
             //没有注册CMD
@@ -75,13 +93,20 @@ export class TSEventCenter {
             } else {
                 //其他服务器必须进队列里等待
                 let lock: CoroutineLock = this.getCMDLock(roleUid);
-                await lock.lock();
+                try {
+                    await lock.lock();
+                } catch (err: any) {
+                    console.warn("eventCMDAsync lock cleared", roleUid, realKey, err?.message || err);
+                    return;
+                }
                 try {
                     await cmd.func.apply(cmd.thisobj, data);
                 } catch (err) {
                     console.error(err);
+                } finally {
+                    lock.unlock();
+                    this.lockUseTimeMap.set(roleUid, Date.now());
                 }
-                lock.unlock();
             }
         } else {
             await cmd.func.apply(cmd.thisobj, data);
@@ -148,7 +173,7 @@ export class TSEventCenter {
 
 
     public event(name: number, ...data: any[]): void {
-        let time = DateUtils.timestamp();
+        let time = DateUtils.msSysTick;
         let arr = this.rpcMap.get(name);
         if (arr) {
             for (let i = arr.length - 1; i >= 0; i--) {
@@ -160,7 +185,7 @@ export class TSEventCenter {
 
 
     public async eventAwait(name: number, ...data: any[]): Promise<any[]> {
-        let time = DateUtils.timestamp();
+        let time = DateUtils.msSysTick;
         let arr = this.awaitMap.get(name);
         if (arr) {
             let f: Function = arr[0];
@@ -175,12 +200,12 @@ export class TSEventCenter {
     ///========================以下是DB的===================================
 
     public async eventDB(name: string, ...data: any[]): Promise<any> {
-        let time = DateUtils.timestamp();
+        let time = DateUtils.msSysTick;
         let arr = this.dbMap.get(name);
         if (arr) {
             let f: Function = arr[0];
             let ret = await f.apply(arr[1], data);
-            let time2 = DateUtils.timestamp();
+            let time2 = DateUtils.msSysTick;
             let time3 = time2 - time;
             return ret;
         }
@@ -203,6 +228,23 @@ export class TSEventCenter {
         let arr = this.dbMap.get(name);
         if (arr) {
             this.dbMap.delete(name);
+        }
+    }
+
+    private cleanIdleCMDLocks() {
+        if (this.lockMap.size <= 0) {
+            return;
+        }
+        let now = Date.now();
+        for (let [roleUid, lock] of this.lockMap.entries()) {
+            if (lock.isBusy()) {
+                continue;
+            }
+            let lastUse = this.lockUseTimeMap.get(roleUid) ?? now;
+            if (now - lastUse >= TSEventCenter.CMD_LOCK_IDLE_MS) {
+                this.lockMap.delete(roleUid);
+                this.lockUseTimeMap.delete(roleUid);
+            }
         }
     }
 
