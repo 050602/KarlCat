@@ -36,8 +36,34 @@ export class RpcSocketPool {
     getSocket(id: string) {
         return this.rpcSockets[id];
     }
+
+    /**
+     * 关闭所有RPC链接（用于进程退出前清理）
+     */
+    closeAllSockets() {
+        let ids = Object.keys(this.rpcSockets);
+        for (let id of ids) {
+            let socket = this.rpcSockets[id];
+            if (!socket) {
+                continue;
+            }
+            try {
+                if (typeof socket.remove === "function") {
+                    socket.remove();
+                } else if (typeof socket.close === "function") {
+                    socket.close();
+                }
+            } catch (err) {
+                console.error("closeAllSockets error", id, err);
+            } finally {
+                delete this.rpcSockets[id];
+            }
+        }
+    }
 }
 
 export interface I_RpcSocket {
     send(data: Buffer): void;
+    close?(): void;
+    remove?(): void;
 }

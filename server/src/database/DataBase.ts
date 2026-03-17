@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 import { app } from "../app";
 import { Sigleton } from "../core/Sigleton";
+import { DatabaseEvent } from "../event/DatabaseEvent";
+import { ServerType } from "../register/route";
+import { TSEventCenter } from "../utils/TSEventCenter";
 
 
 export class DataBase extends Sigleton {
@@ -12,9 +15,15 @@ export class DataBase extends Sigleton {
     }
 
     public initInstance() {
+        if (app.serverInfo.serverType == ServerType.database) {
+            TSEventCenter.Instance.bindDB(DatabaseEvent.OnHealthCheck, this, this.healthCheck);
+        }
     }
 
     public destoryInstance() {
+        if (app.serverInfo.serverType == ServerType.database) {
+            TSEventCenter.Instance.unbindDB(DatabaseEvent.OnHealthCheck);
+        }
     }
 
     public db: mongoose.Mongoose;
@@ -22,11 +31,13 @@ export class DataBase extends Sigleton {
     public async init() {
         //TODO请下方已英文字母来排序，不然会强迫症
         return new Promise((resolve, reject) => {
+            const configuredMaxPool = Number((app.zoneConfig as any).mongodb_maxPoolSize);
+            const maxPoolSize = Number.isFinite(configuredMaxPool) && configuredMaxPool > 0 ? configuredMaxPool : 200;
 
             const options = {
                 autoIndex: true,
                 // autoReconnect: true,
-                maxPoolSize: 1000,
+                maxPoolSize: maxPoolSize,
                 minPoolSize: 1,
             }
             //多个数据库连接的处理办法
@@ -57,8 +68,8 @@ export class DataBase extends Sigleton {
                     // await ServerSettingTable.Instance.init(db);
 
 
-                    resolve(null)
                     DataBase.Instance.initDataBase = true;
+                    resolve(null)
 
                 } catch (error) {
                     console.error("init db", error);
@@ -104,6 +115,10 @@ export class DataBase extends Sigleton {
             // }
 
         });
+    }
+
+    private async healthCheck(): Promise<boolean> {
+        return this.initDataBase === true && this.db?.connection?.readyState === 1;
     }
 
 }

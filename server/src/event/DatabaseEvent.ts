@@ -9,6 +9,6 @@ export enum DatabaseEvent {
 	OnDeleteAssetCache = "OnDeleteAssetCache",//参数 roleUid assetUid
 	OnDeleteManyData = "OnDeleteManyData",
 	OnGetOnlyNextId = "OnGetOnlyNextId", // 获取唯一ID
-	OnCount = "OnCount",
-	OnDistinct = "OnDistinct",
+	OnGetRowCount = "OnGetRowCount",
+	OnHealthCheck = "OnHealthCheck",
 }

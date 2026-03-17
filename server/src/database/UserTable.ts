@@ -1,5 +1,6 @@
 import LRUCache from "lru-cache";
 import mongoose from "mongoose";
+import { allTables } from "../app";
 import { BaseTable } from "./BaseTable";
 
 
@@ -46,6 +47,8 @@ export class UserTable extends BaseTable {
         });
 
         UserTable.Instance.table = db.model(this.tableName, this.schema);
+        allTables.push(this);
+        BaseTable.initDataLog(this);
     }
 
     public async initInstance() {
@@ -84,8 +87,14 @@ export class UserTable extends BaseTable {
 
         this.userDic.set(data.userName, data);
 
+        super.insertRecoverOne(data, { userName: data.userName });
         let insertData = await super.insertOne(data);
-        if (!insertData) {
+        if (insertData) {
+            super.MarkedInsertFinish(data);
+            if (this.dataLog) {
+                this.dataLog.updateLastWriteTime();
+            }
+        } else {
             this.userDic.delete(data.userName);
         }
 
@@ -128,12 +137,26 @@ export class UserTable extends BaseTable {
         if (oldData) {
             this.userDic.delete(username)
         }
+        super.deleteRecoverOne(username, { userName: username });
         let ret = await super.deleteOne({ userName: username });
+        if (ret) {
+            super.MarkedDeleteFinish(username);
+            if (this.dataLog) {
+                this.dataLog.updateLastWriteTime();
+            }
+        }
         return ret;
     }
 
     public async updateOne(userName: string, data: any): Promise<boolean> {
+        super.updateRecoverOne(userName, data, { userName: userName });
         let ret = await super.updateOne({ userName: userName }, data);
+        if (ret) {
+            super.MarkedUpdateFinish(userName);
+            if (this.dataLog) {
+                this.dataLog.updateLastWriteTime();
+            }
+        }
         let oldData: UserData = this.userDic.get(userName);
         if (oldData) {
             for (let datakey in data) {

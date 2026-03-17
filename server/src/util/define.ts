@@ -78,4 +78,6 @@ export const enum Rpc_Msg {
     clientMsgOut = 5,       // Send a message to the client
     rpcMsg = 6,              // rpc message
     rpcMsgAwait = 7,              // rpc message await
+    forward_cross2RealCross_inSubZone = 8,  // Forward from cross to realCross
+    forward_realCross2cross_inCrossZone = 9, // Forward from realCross to cross
 }
